@@ -184,3 +184,4 @@ _build/
 ?.*
 ~*
 *.sync
+_version.py

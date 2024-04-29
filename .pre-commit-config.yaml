@@ -51,6 +51,7 @@ repos:
     - --exit-non-zero-on-fix
     - --preview
 
+
 - repo: https://github.com/sphinx-contrib/sphinx-lint
   rev: v0.9.1
   hooks:
@@ -61,3 +62,9 @@ repos:
   rev: v0.0.14
   hooks:
     - id: rstfmt
+
+- repo: https://github.com/b8raoult/pre-commit-docconvert
+  rev: "0.1.4"
+  hooks:
+  - id: docconvert
+    args: ["numpy"]
