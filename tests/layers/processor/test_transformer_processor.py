@@ -7,7 +7,8 @@
 
 import pytest
 import torch
-from aifs.layers.processor import TransformerProcessor
+
+from anemoi.models.layers.processor import TransformerProcessor
 
 
 @pytest.fixture

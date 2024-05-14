@@ -6,7 +6,8 @@
 # nor does it submit to any jurisdiction.
 
 import pytest
-from aifs.layers.processor import BaseProcessor
+
+from anemoi.models.layers.processor import BaseProcessor
 
 
 @pytest.fixture

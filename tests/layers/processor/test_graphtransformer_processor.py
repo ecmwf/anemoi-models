@@ -7,9 +7,10 @@
 
 import pytest
 import torch
-from aifs.layers.graph import TrainableTensor
-from aifs.layers.processor import GraphTransformerProcessor
 from torch_geometric.data import HeteroData
+
+from anemoi.models.layers.graph import TrainableTensor
+from anemoi.models.layers.processor import GraphTransformerProcessor
 
 
 @pytest.fixture
