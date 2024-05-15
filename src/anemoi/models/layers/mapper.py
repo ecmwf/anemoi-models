@@ -9,7 +9,6 @@
 
 from abc import ABC
 from typing import Optional
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -62,7 +61,7 @@ class BaseMapper(nn.Module, ABC):
         if cpu_offload:
             self.proc = nn.ModuleList([offload_wrapper(x) for x in self.proc])
 
-    def pre_process(self, x, shard_shapes, model_comm_group=None) -> Tuple[Tensor, Tensor, Tuple[int], Tuple[int]]:
+    def pre_process(self, x, shard_shapes, model_comm_group=None) -> tuple[Tensor, Tensor, tuple[int], tuple[int]]:
         """Pre-processing for the Mappers.
 
         Splits the tuples into src and dst nodes and shapes as the base operation.
@@ -136,8 +135,7 @@ class GraphEdgeMixin:
         )
 
     def _expand_edges(self, edge_index: Adj, edge_inc: Tensor, batch_size: int) -> Adj:
-        """Expand edge index correct number of times while adding the proper number to
-        the edge index.
+        """Expand edge index while incrementing to the edge index.
 
         Parameters
         ----------
@@ -234,7 +232,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
         self,
         x: PairTensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], Tuple[int]],
+        shard_shapes: tuple[tuple[int], tuple[int]],
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> PairTensor:
         size = (sum(x[0] for x in shard_shapes[0]), sum(x[0] for x in shard_shapes[1]))
@@ -324,7 +322,7 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
         self,
         x: PairTensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], Tuple[int]],
+        shard_shapes: tuple[tuple[int], tuple[int]],
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> PairTensor:
         x_dst = super().forward(x, batch_size, shard_shapes, model_comm_group)
@@ -481,7 +479,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
         self,
         x: PairTensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], Tuple[int]],
+        shard_shapes: tuple[tuple[int], tuple[int]],
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> PairTensor:
 
@@ -492,7 +490,12 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
         x_src, x_dst, shapes_src, shapes_dst = self.pre_process(x, shard_shapes, model_comm_group)
 
         (x_src, x_dst), edge_attr = self.proc(
-            (x_src, x_dst), edge_attr, edge_index, (shapes_src, shapes_dst), model_comm_group, size=size
+            (x_src, x_dst),
+            edge_attr,
+            edge_index,
+            (shapes_src, shapes_dst),
+            model_comm_group,
+            size=size,
         )
 
         x_dst = self.post_process(x_dst, shapes_dst, model_comm_group)
@@ -671,7 +674,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
         self,
         x: PairTensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], Tuple[int]],
+        shard_shapes: tuple[tuple[int], tuple[int]],
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> Tensor:
 

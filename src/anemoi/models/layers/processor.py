@@ -9,7 +9,6 @@
 
 from abc import ABC
 from typing import Optional
-from typing import Tuple
 
 from torch import Tensor
 from torch import nn
@@ -57,20 +56,19 @@ class BaseProcessor(nn.Module, ABC):
         if cpu_offload:
             self.proc = nn.ModuleList([offload_wrapper(x) for x in self.proc])
 
-    def build_layers(self, ProcessorChunk, *args, **kwargs) -> None:
+    def build_layers(self, processor_chunk_class, *args, **kwargs) -> None:
         """Build Layers."""
-
         self.proc = nn.ModuleList(
             [
-                ProcessorChunk(
+                processor_chunk_class(
                     *args,
                     **kwargs,
                 )
                 for _ in range(self.num_layers)
-            ]
+            ],
         )
 
-    def run_layers(self, data: Tuple, *args, **kwargs) -> Tensor:
+    def run_layers(self, data: tuple, *args, **kwargs) -> Tensor:
         """Run Layers with checkpoint."""
         for layer in self.proc:
             data = checkpoint(layer, *data, *args, **kwargs, use_reentrant=False)
@@ -142,7 +140,7 @@ class TransformerProcessor(BaseProcessor):
         self,
         x: Tensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], ...],
+        shard_shapes: tuple[tuple[int], ...],
         model_comm_group: Optional[ProcessGroup] = None,
         *args,
         **kwargs,
@@ -206,12 +204,12 @@ class GNNProcessor(GraphEdgeMixin, BaseProcessor):
 
         self.trainable = TrainableTensor(trainable_size=trainable_size, tensor_size=self.edge_attr.shape[0])
 
-        kwargs = dict(
-            num_layers=self.chunk_size,
-            mlp_extra_layers=mlp_extra_layers,
-            activation=activation,
-            edge_dim=None,
-        )
+        kwargs = {
+            "num_layers": self.chunk_size,
+            "mlp_extra_layers": mlp_extra_layers,
+            "activation": activation,
+            "edge_dim": None,
+        }
 
         self.build_layers(GNNProcessorChunk, num_channels, **kwargs)
 
@@ -224,7 +222,7 @@ class GNNProcessor(GraphEdgeMixin, BaseProcessor):
         self,
         x: Tensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], Tuple[int]],
+        shard_shapes: tuple[tuple[int], tuple[int]],
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> Tensor:
         shape_nodes = change_channels_in_shape(shard_shapes, self.num_channels)
@@ -232,7 +230,10 @@ class GNNProcessor(GraphEdgeMixin, BaseProcessor):
         edge_index = self._expand_edges(self.edge_index_base, self.edge_inc, batch_size)
         target_nodes = sum(x[0] for x in shape_nodes)
         edge_attr, edge_index, shapes_edge_attr, shapes_edge_idx = sort_edges_1hop(
-            target_nodes, edge_attr, edge_index, model_comm_group
+            target_nodes,
+            edge_attr,
+            edge_index,
+            model_comm_group,
         )
         edge_index = shard_tensor(edge_index, 1, shapes_edge_idx, model_comm_group)
         edge_attr = shard_tensor(edge_attr, 0, shapes_edge_attr, model_comm_group)
@@ -309,7 +310,7 @@ class GraphTransformerProcessor(GraphEdgeMixin, BaseProcessor):
         self,
         x: Tensor,
         batch_size: int,
-        shard_shapes: Tuple[Tuple[int], Tuple[int]],
+        shard_shapes: tuple[tuple[int], tuple[int]],
         model_comm_group: Optional[ProcessGroup] = None,
         *args,
         **kwargs,
