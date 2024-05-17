@@ -51,34 +51,12 @@ class AnemoiModelEncProcDec(nn.Module):
         self._graph_name_data = config.graph.data
         self._graph_name_hidden = config.graph.hidden
 
-        # Calculate shapes and indices
-        self.num_input_channels = len(data_indices.model.input)
-        self.num_output_channels = len(data_indices.model.output)
-        self._internal_input_idx = data_indices.model.input.prognostic
-        self._internal_output_idx = data_indices.model.output.prognostic
-
-        assert len(self._internal_output_idx) == len(data_indices.model.output.full) - len(
-            data_indices.model.output.diagnostic
-        ), (
-            f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and the output indices excluding "
-            f"diagnostic variables ({len(data_indices.model.output.full) - len(data_indices.model.output.diagnostic)})",
-        )
-        assert len(self._internal_input_idx) == len(
-            self._internal_output_idx,
-        ), f"Model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
+        self._calculate_shapes_and_indices(data_indices)
+        self._assert_matching_indices(data_indices)
 
         self.multi_step = config.training.multistep_input
 
-        # Define Sizes of different tensors
-        self._data_grid_size = self._graph_data[(self._graph_name_data, "to", self._graph_name_data)].ecoords_rad.shape[
-            0
-        ]
-        self._hidden_grid_size = self._graph_data[
-            (self._graph_name_hidden, "to", self._graph_name_hidden)
-        ].hcoords_rad.shape[0]
-
-        self.trainable_data_size = config.model.trainable_parameters.data
-        self.trainable_hidden_size = config.model.trainable_parameters.hidden
+        self._define_tensor_sizes(config)
 
         # Create trainable tensors
         self._create_trainable_attributes()
@@ -122,6 +100,36 @@ class AnemoiModelEncProcDec(nn.Module):
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._data_grid_size,
         )
+
+    def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
+        self.num_input_channels = len(data_indices.model.input)
+        self.num_output_channels = len(data_indices.model.output)
+        self._internal_input_idx = data_indices.model.input.prognostic
+        self._internal_output_idx = data_indices.model.output.prognostic
+
+    def _assert_matching_indices(self, data_indices: dict) -> None:
+
+        assert len(self._internal_output_idx) == len(data_indices.model.output.full) - len(
+            data_indices.model.output.diagnostic
+        ), (
+            f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and the output indices excluding "
+            f"diagnostic variables ({len(data_indices.model.output.full) - len(data_indices.model.output.diagnostic)})",
+        )
+        assert len(self._internal_input_idx) == len(
+            self._internal_output_idx,
+        ), f"Model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
+
+    def _define_tensor_sizes(self, config: DotConfig) -> None:
+        # Define Sizes of different tensors
+        self._data_grid_size = self._graph_data[(self._graph_name_data, "to", self._graph_name_data)].ecoords_rad.shape[
+            0
+        ]
+        self._hidden_grid_size = self._graph_data[
+            (self._graph_name_hidden, "to", self._graph_name_hidden)
+        ].hcoords_rad.shape[0]
+
+        self.trainable_data_size = config.model.trainable_parameters.data
+        self.trainable_hidden_size = config.model.trainable_parameters.hidden
 
     def _register_latlon(self, name: str, key: str) -> None:
         """Register lat/lon buffers.
