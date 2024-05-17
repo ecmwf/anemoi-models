@@ -5,6 +5,8 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import logging
+
 import torch
 from hypothesis import given
 from hypothesis import settings
@@ -16,9 +18,8 @@ from anemoi.models.layers.block import MLP
 from anemoi.models.layers.block import GraphConvProcessorBlock
 from anemoi.models.layers.block import TransformerProcessorBlock
 from anemoi.models.layers.conv import GraphConv
-from anemoi.models.utils.logger import get_code_logger
 
-LOGGER = get_code_logger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class TestTransformerProcessorBlock:
