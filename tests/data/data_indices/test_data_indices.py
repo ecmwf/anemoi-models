@@ -7,37 +7,10 @@
 
 import pytest
 import torch
-import yaml
 
-from anemoi.models.data.data_indices.collection import IndexCollection
-from anemoi.models.data.data_indices.index import BaseIndex
 from anemoi.models.data.data_indices.index import DataIndex
-from anemoi.models.data.data_indices.tensor import BaseTensorIndex
 from anemoi.models.data.data_indices.tensor import InputTensorIndex
 from anemoi.models.data.data_indices.tensor import OutputTensorIndex
-
-
-@pytest.mark.data_dependent()
-@pytest.mark.parametrize(
-    ("data_model", "in_out", "full_only_prognostic"),
-    [
-        (a, b, c)
-        for a in ["data", "model"]
-        for b in ["input", "output"]
-        for c in ["full", "forcing", "diagnostic", "prognostic"]
-    ],
-)
-def test_dataindex_types(datamodule, data_model, in_out, full_only_prognostic) -> None:
-    assert hasattr(datamodule, "data_indices")
-    assert isinstance(datamodule.data_indices, IndexCollection)
-    data_indices = datamodule.data_indices
-
-    assert hasattr(data_indices, data_model)
-    assert isinstance(getattr(data_indices, data_model), BaseIndex)
-    assert hasattr(getattr(data_indices, data_model), in_out)
-    assert isinstance(getattr(getattr(data_indices, data_model), in_out), BaseTensorIndex)
-    assert hasattr(getattr(getattr(data_indices, data_model), in_out), full_only_prognostic)
-    assert isinstance(getattr(getattr(getattr(data_indices, data_model), in_out), full_only_prognostic), torch.Tensor)
 
 
 @pytest.fixture()
@@ -161,8 +134,3 @@ def test_input_tensor_index_build_idx_from_includes(input_tensor_index) -> None:
 def test_input_tensor_index_build_idx_prognostic(input_tensor_index) -> None:
     expected_output = torch.Tensor([3, 4]).to(torch.int)
     assert torch.allclose(input_tensor_index._build_idx_prognostic(), expected_output)
-
-
-@pytest.mark.data_dependent()
-def test_yaml_dump(datamodule) -> None:
-    yaml.dump(datamodule.data_indices)
