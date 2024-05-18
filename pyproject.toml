@@ -67,6 +67,9 @@ Repository = "https://github.com/ecmwf/anemoi-models/"
 Issues = "https://github.com/ecmwf/anemoi-models/issues"
 # Changelog = "https://github.com/ecmwf/anemoi-models/CHANGELOG.md"
 
+[project.scripts]
+# Add subcommand in the `commands` directory
+anemoi-models = "anemoi.models.__main__:main"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/models/_version.py"
