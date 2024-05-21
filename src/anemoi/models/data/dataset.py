@@ -16,11 +16,10 @@ from typing import Optional
 
 import numpy as np
 import torch
+from anemoi.utils.seeding import get_base_seed
 from einops import rearrange
 from torch.utils.data import IterableDataset
 from torch.utils.data import get_worker_info
-
-from anemoi.models.utils.seeding import get_base_seed
 
 LOGGER = logging.getLogger(__name__)
 
