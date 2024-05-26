@@ -1,26 +1,24 @@
-############
- Installing
-############
+Installing
+==========
 
 To install the package, you can use the following command:
 
-.. code:: bash
+.. code-block:: bash
 
-   pip install anemoi-models
+    pip install anemoi-models
 
-**************
- Contributing
-**************
+Contributing
+------------
 
-.. code:: bash
+.. code-block:: bash
 
-   git clone ...
-   cd anemoi-models
-   pip install .[dev]
-   pip install -r docs/requirements.txt
+    git clone ...
+    cd anemoi-models
+    pip install .[dev]
+    pip install -r docs/requirements.txt
 
 You may also have to install pandoc on MacOS:
 
-.. code:: bash
+.. code-block:: bash
 
-   brew install pandoc
+    brew install pandoc

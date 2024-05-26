@@ -2,47 +2,42 @@
 
 .. _index-page:
 
-####################################
- Welcome to Anemoi's documentation!
-####################################
+Welcome to Anemoi's documentation!
+==================================
 
 .. warning::
 
-   This documentation is work in progress.
+    This documentation is work in progress.
 
-*Anemoi* is a framework for developing machine learning weather
-forecasting models. It comprises of components or packages for preparing
-training datasets, conducting ML model training and a registry for
-datasets and trained models. *Anemoi* provides tools for operational
-inference, including interfacing to verification software. As a
-framework it seeks to handle many of the complexities that
-meteorological organisations will share, allowing them to easily train
-models from existing recipes but with their own data.
+*Anemoi* is a framework for developing machine learning weather forecasting models. It
+comprises of components or packages for preparing training datasets, conducting ML model
+training and a registry for datasets and trained models. *Anemoi* provides tools for
+operational inference, including interfacing to verification software. As a framework it
+seeks to handle many of the complexities that meteorological organisations will share,
+allowing them to easily train models from existing recipes but with their own data.
 
-This package provides a series of utility functions for used by the rest
-of the *Anemoi* packages.
+This package provides a series of utility functions for used by the rest of the *Anemoi*
+packages.
 
--  :doc:`installing`
+- :doc:`installing`
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+    :maxdepth: 1
+    :hidden:
 
-   installing
+    installing
 
-*****************
- Anemoi packages
-*****************
+Anemoi packages
+---------------
 
--  :ref:`anemoi-utils <anemoi-utils:index-page>`
--  :ref:`anemoi-datasets <anemoi-datasets:index-page>`
--  :ref:`anemoi-models <anemoi-models:index-page>`
--  :ref:`anemoi-training <anemoi-training:index-page>`
--  :ref:`anemoi-inference <anemoi-inference:index-page>`
+- :ref:`anemoi-utils <anemoi-utils:index-page>`
+- :ref:`anemoi-datasets <anemoi-datasets:index-page>`
+- :ref:`anemoi-models <anemoi-models:index-page>`
+- :ref:`anemoi-training <anemoi-training:index-page>`
+- :ref:`anemoi-inference <anemoi-inference:index-page>`
 
-*********
- License
-*********
+License
+-------
 
 *Anemoi* is available under the open source `Apache License`__.
 
