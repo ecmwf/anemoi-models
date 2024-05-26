@@ -39,26 +39,19 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-dependencies = [
-
-]
+dependencies = []
 
 [project.optional-dependencies]
 
 
 docs = [
     # For building the documentation
+    "sphinx", "sphinx_rtd_theme", "nbsphinx", "pandoc", "sphinx_argparse"
 ]
 
-all = [
-]
+all = []
 
-dev = [
-    "sphinx",
-    "sphinx_rtd_theme",
-    "nbsphinx",
-    "pandoc",
-]
+dev = []
 
 [project.urls]
 Homepage = "https://github.com/ecmwf/anemoi-models/"
