@@ -24,8 +24,8 @@ except ImportError:
 else:
     _FLASH_ATTENTION_AVAILABLE = True
 
-from anemoi.models.distributed.helpers import shard_heads
-from anemoi.models.distributed.helpers import shard_sequence
+from src.anemoi.models.distributed.graph import shard_heads
+from src.anemoi.models.distributed.graph import shard_sequence
 
 LOGGER = logging.getLogger(__name__)
 

@@ -21,14 +21,14 @@ from torch_geometric.typing import Adj
 from torch_geometric.typing import OptPairTensor
 from torch_geometric.typing import Size
 
-from anemoi.models.distributed.helpers import shard_heads
-from anemoi.models.distributed.helpers import shard_sequence
-from anemoi.models.distributed.helpers import shard_tensor
-from anemoi.models.distributed.helpers import sync_tensor
 from anemoi.models.layers.attention import MultiHeadSelfAttention
 from anemoi.models.layers.conv import GraphConv
 from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
+from src.anemoi.models.distributed.graph import shard_heads
+from src.anemoi.models.distributed.graph import shard_sequence
+from src.anemoi.models.distributed.graph import shard_tensor
+from src.anemoi.models.distributed.graph import sync_tensor
 
 LOGGER = logging.getLogger(__name__)
 

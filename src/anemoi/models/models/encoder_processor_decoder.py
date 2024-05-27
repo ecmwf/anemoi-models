@@ -19,9 +19,9 @@ from torch.distributed.distributed_c10d import ProcessGroup
 from torch.utils.checkpoint import checkpoint
 from torch_geometric.data import HeteroData
 
-from anemoi.models.distributed.helpers import get_shape_shards
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.utils.config import DotConfig
+from src.anemoi.models.distributed.shapes import get_shape_shards
 
 LOGGER = logging.getLogger(__name__)
 
