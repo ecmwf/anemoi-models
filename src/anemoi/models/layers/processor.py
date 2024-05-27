@@ -44,7 +44,8 @@ class BaseProcessor(nn.Module, ABC):
         """Initialize BaseProcessor."""
         super().__init__()
 
-        self.num_layers = num_layers
+        # Each Processor divides the layers into chunks that get assigned to each ProcessorChunk
+        self.num_chunks = num_chunks
         self.num_channels = num_channels
         self.chunk_size = num_layers // num_chunks
 
@@ -64,7 +65,7 @@ class BaseProcessor(nn.Module, ABC):
                     *args,
                     **kwargs,
                 )
-                for _ in range(self.num_layers)
+                for _ in range(self.num_chunks)
             ],
         )
 
