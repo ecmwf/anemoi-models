@@ -24,7 +24,7 @@ from anemoi.models.distributed.helpers import change_channels_in_shape
 from anemoi.models.distributed.helpers import gather_tensor
 from anemoi.models.distributed.helpers import get_shape_shards
 from anemoi.models.distributed.helpers import shard_tensor
-from anemoi.models.distributed.helpers import sort_edges_1hop
+from anemoi.models.distributed.khop_edges import sort_edges_1hop
 from anemoi.models.layers.block import GraphConvMapperBlock
 from anemoi.models.layers.block import GraphTransformerMapperBlock
 from anemoi.models.layers.graph import TrainableTensor
