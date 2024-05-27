@@ -19,7 +19,7 @@ from anemoi.models.utils.config import DotConfig
 
 
 class AnemoiModelInterface(torch.nn.Module):
-    """AIFS model on torch level."""
+    """Anemoi model on torch level."""
 
     def __init__(
         self, *, config: DotConfig, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict
