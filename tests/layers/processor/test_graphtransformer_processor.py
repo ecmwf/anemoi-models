@@ -93,7 +93,7 @@ def test_graphtransformer_processor_init(graphtransformer_processor, graphtransf
         _dst_grid_size,
         _trainable_size,
     ) = graphtransformer_init
-    assert graphtransformer_processor.num_layers == num_layers
+    assert graphtransformer_processor.num_chunks == num_chunks
     assert graphtransformer_processor.num_channels == num_channels
     assert graphtransformer_processor.chunk_size == num_layers // num_chunks
     assert isinstance(graphtransformer_processor.trainable, TrainableTensor)

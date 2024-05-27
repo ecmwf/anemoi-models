@@ -40,10 +40,12 @@ classifiers = [
 ]
 
 dependencies = [
-    "torch>=2.2",
-    "torch-geometric>=2.3.1,<2.5",
-    "einops>=0.6.1",
-    "anemoi-utils@git+https://github.com/ecmwf/anemoi-utils.git@feature/add-utils-for-training-and-models",
+    "torch==2.3",
+    "torch-geometric==2.4",
+    "einops==0.6.1",
+    "hydra-core==1.3",
+    "anemoi-datasets==0.2.1",
+    "anemoi-utils==0.1.9",
 ]
 
 [project.optional-dependencies]
@@ -51,11 +53,17 @@ dependencies = [
 
 docs = [
     # For building the documentation
-    "sphinx", 
-    "sphinx_rtd_theme", 
-    "nbsphinx", 
-    "pandoc", 
-    "sphinx_argparse"
+]
+
+all = []
+
+tests = ["pytest", "hypothesis", "omegaconf"]
+
+dev = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "nbsphinx",
+    "pandoc",
     "pytest",
     "hypothesis",
     "hydra-core>=1.3",

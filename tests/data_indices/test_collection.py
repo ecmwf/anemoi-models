@@ -9,7 +9,7 @@ import pytest
 import torch
 from omegaconf import DictConfig
 
-from anemoi.models.data.data_indices.collection import IndexCollection
+from anemoi.models.data_indices.collection import IndexCollection
 
 
 @pytest.fixture()

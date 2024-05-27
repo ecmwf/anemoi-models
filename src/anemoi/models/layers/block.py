@@ -25,10 +25,10 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
 from anemoi.models.layers.conv import GraphConv
 from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
-from src.anemoi.models.distributed.graph import shard_heads
-from src.anemoi.models.distributed.graph import shard_sequence
 from src.anemoi.models.distributed.graph import shard_tensor
 from src.anemoi.models.distributed.graph import sync_tensor
+from src.anemoi.models.distributed.transformer import shard_heads
+from src.anemoi.models.distributed.transformer import shard_sequence
 
 LOGGER = logging.getLogger(__name__)
 

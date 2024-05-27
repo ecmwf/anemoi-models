@@ -69,7 +69,7 @@ def test_transformer_processor_init(transformer_processor, transformer_processor
         _mlp_hidden_ratio,
     ) = transformer_processor_init
     assert isinstance(transformer_processor, TransformerProcessor)
-    assert transformer_processor.num_layers == num_layers
+    assert transformer_processor.num_chunks == num_chunks
     assert transformer_processor.num_channels == num_channels
     assert transformer_processor.chunk_size == num_layers // num_chunks
 

@@ -8,9 +8,9 @@
 import pytest
 import torch
 
-from anemoi.models.data.data_indices.index import DataIndex
-from anemoi.models.data.data_indices.tensor import InputTensorIndex
-from anemoi.models.data.data_indices.tensor import OutputTensorIndex
+from anemoi.models.data_indices.index import DataIndex
+from anemoi.models.data_indices.tensor import InputTensorIndex
+from anemoi.models.data_indices.tensor import OutputTensorIndex
 
 
 @pytest.fixture()
