@@ -10,10 +10,11 @@
 import uuid
 
 import torch
+from hydra import instantiate
 from torch_geometric.data import HeteroData
 
-from anemoi.models.data.normalizer import InputNormalizer
 from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
+from anemoi.models.preprocessing import Processors
 from anemoi.models.utils.config import DotConfig
 
 
@@ -34,13 +35,23 @@ class AnemoiModelInterface(torch.nn.Module):
         self._build_model()
 
     def _build_model(self) -> None:
-        """Build the model and input normalizer."""
-        self.normalizer = InputNormalizer(
-            config=self.config, statistics=self.statistics, data_indices=self.data_indices
-        )
+        """Build the model and pre- and post-processors."""
+        # Instantiate processors
+        processors = [
+            [name, instantiate(processor, statistics=self.statistics, data_indices=self.data_indices)]
+            for name, processor in self.config.data.processors.items()
+        ]
+
+        # Assign the processor list pre- and post-processors
+        self.pre_processors = Processors(processors)
+        self.post_processors = Processors(processors, inverse=True)
+
+        # Instantiate the model
         self.model = AnemoiModelEncProcDec(
             config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
         )
+
+        # Use the forward method of the model directly
         self.forward = self.model.forward
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
@@ -56,10 +67,10 @@ class AnemoiModelInterface(torch.nn.Module):
         torch.Tensor
             Predicted data.
         """
-        batch = self.normalizer.normalize(batch, in_place=False)
+        batch = self.pre_processors(batch, in_place=False)
 
         with torch.no_grad():
             x = batch[:, 0 : self.multi_step, ...]
             y_hat = self(x)
 
-        return self.normalizer.denormalize(y_hat, in_place=False)
+        return self.post_processors(y_hat, in_place=False)

@@ -6,66 +6,99 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
+
 import logging
 import warnings
 from typing import Optional
 
 import numpy as np
 import torch
-from torch import nn
+
+from anemoi.models.preprocessing import BasePreprocessor
 
 LOGGER = logging.getLogger(__name__)
 
 
-class InputNormalizer(nn.Module):
-    """Normalizes input data to zero mean and unit variance."""
+class InputNormalizer(BasePreprocessor):
+    """Normalizes input data with a configurable method."""
 
-    def __init__(self, *, config, statistics: dict, data_indices: dict) -> None:
+    def __init__(
+        self,
+        config=None,
+        data_indices: Optional[dict] = None,
+        statistics: Optional[dict] = None,
+    ) -> None:
         """Initialize the normalizer.
 
         Parameters
         ----------
-        zarr_metadata : Dict
-            Zarr metadata dictionary
+        config : Dotconfig
+            configuration object
+        statistics : dict
+            Data statistics dictionary
+        data_indices : dict
+            Data indices for input and output variables
         """
-        super().__init__()
-        LOGGER.setLevel(config.diagnostics.log.code.level)
+        super().__init__(config, statistics, data_indices)
 
-        default = config.data.normalizer.default
-        method_config = {k: v for k, v in config.data.normalizer.items() if k != "default" and v is not None}
-
-        if not method_config:
-            LOGGER.warning(
-                f"Normalizing: Using default method {default} for all variables not specified in the config."
-            )
-
-        name_to_index = data_indices.data.input.name_to_index
-
-        methods = {
-            variable: method
-            for method, variables in method_config.items()
-            if not isinstance(variables, str)
-            for variable in variables
-        }
-
-        assert len(methods) == sum(len(v) for v in method_config.values()), (
-            f"Error parsing methods in InputNormalizer methods ({len(methods)}) "
-            f"and entries in config ({sum(len(v) for v in method_config)}) do not match."
-        )
+        name_to_index_training_input = self.data_indices.data.input.name_to_index
 
         minimum = statistics["minimum"]
         maximum = statistics["maximum"]
         mean = statistics["mean"]
         stdev = statistics["stdev"]
 
+        self._validate_normalization_inputs(name_to_index_training_input, minimum, maximum, mean, stdev)
+
+        _norm_add = np.zeros((minimum.size,), dtype=np.float32)
+        _norm_mul = np.ones((minimum.size,), dtype=np.float32)
+
+        for name, i in name_to_index_training_input.items():
+            method = self.methods.get(name, self.default)
+            if method == "mean-std":
+                LOGGER.debug(f"Normalizing: {name} is mean-std-normalised.")
+                if stdev[i] < (mean[i] * 1e-6):
+                    warnings.warn(f"Normalizing: the field seems to have only one value {mean[i]}")
+                _norm_mul[i] = 1 / stdev[i]
+                _norm_add[i] = -mean[i] / stdev[i]
+
+            elif method == "min-max":
+                LOGGER.debug(f"Normalizing: {name} is min-max-normalised to [0, 1].")
+                x = maximum[i] - minimum[i]
+                if x < 1e-9:
+                    warnings.warn(f"Normalizing: the field {name} seems to have only one value {maximum[i]}.")
+                _norm_mul[i] = 1 / x
+                _norm_add[i] = -minimum[i] / x
+
+            elif method == "max":
+                LOGGER.debug(f"Normalizing: {name} is max-normalised to [0, 1].")
+                _norm_mul[i] = 1 / maximum[i]
+
+            elif method == "none":
+                LOGGER.info(f"Normalizing: {name} is not normalized.")
+
+            else:
+                raise ValueError[f"Unknown normalisation method for {name}: {method}"]
+
+        # register buffer - this will ensure they get copied to the correct device(s)
+        self.register_buffer("_norm_mul", torch.from_numpy(_norm_mul), persistent=True)
+        self.register_buffer("_norm_add", torch.from_numpy(_norm_add), persistent=True)
+        self.register_buffer("_input_idx", data_indices.data.input.full, persistent=True)
+        self.register_buffer("_output_idx", self.data_indices.data.output.full, persistent=True)
+
+    def _validate_normalization_inputs(self, name_to_index_training_input: dict, minimum, maximum, mean, stdev):
+        assert len(self.methods) == sum(len(v) for v in self.method_config.values()), (
+            f"Error parsing methods in InputNormalizer methods ({len(self.methods)}) "
+            f"and entries in config ({sum(len(v) for v in self.method_config)}) do not match."
+        )
         n = minimum.size
         assert maximum.size == n, (maximum.size, n)
         assert mean.size == n, (mean.size, n)
         assert stdev.size == n, (stdev.size, n)
 
-        assert isinstance(methods, dict)
-        for name, method in methods.items():
-            assert name in name_to_index, f"{name} is not a valid variable name"
+        assert isinstance(self.methods, dict)
+        for name, method in self.methods.items():
+            assert name in name_to_index_training_input, f"{name} is not a valid variable name"
             assert method in [
                 "mean-std",
                 # "robust",
@@ -74,43 +107,7 @@ class InputNormalizer(nn.Module):
                 "none",
             ], f"{method} is not a valid normalisation method"
 
-        _norm_add = np.zeros((n,), dtype=np.float32)
-        _norm_mul = np.ones((n,), dtype=np.float32)
-
-        for name, i in name_to_index.items():
-            m = methods.get(name, default)
-            if m == "mean-std":
-                LOGGER.debug(f"Normalizing: {name} is mean-std-normalised.")
-                if stdev[i] < (mean[i] * 1e-6):
-                    warnings.warn(f"Normalizing: the field seems to have only one value {mean[i]}")
-                _norm_mul[i] = 1 / stdev[i]
-                _norm_add[i] = -mean[i] / stdev[i]
-
-            elif m == "min-max":
-                LOGGER.debug(f"Normalizing: {name} is min-max-normalised to [0, 1].")
-                x = maximum[i] - minimum[i]
-                if x < 1e-9:
-                    warnings.warn(f"Normalizing: the field {name} seems to have only one value {maximum[i]}.")
-                _norm_mul[i] = 1 / x
-                _norm_add[i] = -minimum[i] / x
-
-            elif m == "max":
-                LOGGER.debug(f"Normalizing: {name} is max-normalised to [0, 1].")
-                _norm_mul[i] = 1 / maximum[i]
-
-            elif m == "none":
-                LOGGER.info(f"Normalizing: {name} is not normalized.")
-
-            else:
-                raise ValueError[f"Unknown normalisation method for {name}: {m}"]
-
-        # register buffer - this will ensure they get copied to the correct device(s)
-        self.register_buffer("_norm_mul", torch.from_numpy(_norm_mul), persistent=True)
-        self.register_buffer("_norm_add", torch.from_numpy(_norm_add), persistent=True)
-        self.register_buffer("_input_idx", data_indices.data.input.full, persistent=True)
-        self.register_buffer("_output_idx", data_indices.data.output.full, persistent=True)
-
-    def normalize(
+    def transform(
         self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Normalizes an input tensor x of shape [..., nvars].
@@ -145,10 +142,7 @@ class InputNormalizer(nn.Module):
             x[..., :] = x[..., :] * self._norm_mul + self._norm_add
         return x
 
-    def forward(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
-        return self.normalize(x, in_place=in_place)
-
-    def denormalize(
+    def inverse_transform(
         self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Denormalizes an input tensor x of shape [..., nvars | nvars_pred].
