@@ -14,6 +14,7 @@ from typing import Optional
 import numpy as np
 import torch
 
+from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.preprocessing import BasePreprocessor
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class InputNormalizer(BasePreprocessor):
     def __init__(
         self,
         config=None,
-        data_indices: Optional[dict] = None,
+        data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
     ) -> None:
         """Initialize the normalizer.

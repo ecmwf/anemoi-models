@@ -13,6 +13,7 @@ from typing import Optional
 
 import torch
 
+from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.preprocessing import BasePreprocessor
 
 LOGGER = logging.getLogger(__name__)
@@ -24,8 +25,8 @@ class BaseImputer(BasePreprocessor, ABC):
     def __init__(
         self,
         config=None,
+        data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
-        data_indices: Optional[dict] = None,
     ) -> None:
         """Initialize the imputer.
 
@@ -176,7 +177,7 @@ class InputImputer(BaseImputer):
         statistics: Optional[dict] = None,
         data_indices: Optional[dict] = None,
     ) -> None:
-        super().__init__(config, statistics, data_indices)
+        super().__init__(config, data_indices, statistics)
 
         self._create_imputation_indices(statistics)
 
@@ -199,8 +200,10 @@ class ConstantImputer(BaseImputer):
     ```
     """
 
-    def __init__(self, config=None, statistics: Optional[dict] = None, data_indices: Optional[dict] = None) -> None:
-        super().__init__(config, statistics, data_indices)
+    def __init__(
+        self, config=None, statistics: Optional[dict] = None, data_indices: Optional[IndexCollection] = None
+    ) -> None:
+        super().__init__(config, data_indices, statistics)
 
         self._create_imputation_indices()
 
