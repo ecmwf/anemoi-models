@@ -14,14 +14,9 @@ import datetime
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(".."))
-
-
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 
-# top = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
-# sys.path.insert(0, top)
-
+sys.path.insert(0, os.path.join(os.path.abspath(".."), "src"))
 
 source_suffix = ".rst"
 master_doc = "index"
@@ -32,7 +27,7 @@ html_logo = "_static/logo.png"
 
 # -- Project information -----------------------------------------------------
 
-project = "Anemoi"
+project = "Anemoi Models"
 
 author = "ECMWF"
 
@@ -44,8 +39,12 @@ else:
 
 copyright = "%s, ECMWF" % (years,)
 
+try:
+    from anemoi.models._version import __version__
 
-release = "0.1.0"
+    release = __version__
+except ImportError:
+    release = "0.0.0"
 
 
 # -- General configuration ---------------------------------------------------
