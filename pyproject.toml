@@ -68,10 +68,6 @@ dev = [
     "hypothesis",
 ]
 
-all = []
-
-dev = []
-
 [project.urls]
 Homepage = "https://github.com/ecmwf/anemoi-models/"
 Documentation = "https://anemoi-models.readthedocs.io/"
