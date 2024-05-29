@@ -165,6 +165,21 @@ class _SyncParallelSection(torch.autograd.Function):
 class _ReduceShardParallelSection(torch.autograd.Function):
     """All-reduce and shard the input from the parallel section."""
 
+    # Modified from
+    # Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+
     @staticmethod
     def forward(ctx, input_, dim_, shapes_, mgroup_):
         ctx.dim = dim_
@@ -189,6 +204,21 @@ class _ReduceShardParallelSection(torch.autograd.Function):
 
 class _ShardParallelSection(torch.autograd.Function):
     """Split the input and keep only the relevant chunck to the rank."""
+
+    # Modified from
+    # Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
 
     @staticmethod
     def forward(ctx, input_, dim_, shapes_, gather_in_backward_, mgroup_):
@@ -217,6 +247,21 @@ class _ShardParallelSection(torch.autograd.Function):
 
 class _GatherParallelSection(torch.autograd.Function):
     """Gather the input from parallel section and concatenate."""
+
+    # Modified from
+    # Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
 
     @staticmethod
     def forward(ctx, input_, dim_, shapes_, mgroup_):
