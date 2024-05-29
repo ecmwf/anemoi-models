@@ -10,7 +10,7 @@
 import uuid
 
 import torch
-from hydra import instantiate
+from hydra.utils import instantiate
 from torch_geometric.data import HeteroData
 
 from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
