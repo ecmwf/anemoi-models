@@ -70,7 +70,14 @@ class AnemoiModelInterface(torch.nn.Module):
         batch = self.pre_processors(batch, in_place=False)
 
         with torch.no_grad():
-            x = batch[:, 0 : self.multi_step, ...]
+
+            assert (
+                len(batch.shape) == 4
+            ), f"The input tensor has an incorrect shape: expected a 4-dimensional tensor, got {batch.shape}!"
+            # Dimensions are
+            # batch, timesteps, horizonal space, variables
+            x = batch[:, 0 : self.multi_step, None, ...]  # add dummy ensemble dimension as 3rd index
+
             y_hat = self(x)
 
         return self.post_processors(y_hat, in_place=False)
