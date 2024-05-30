@@ -87,7 +87,10 @@ class TestGraphTransformerBaseMapper:
 
     @pytest.fixture
     def fake_graph(self) -> dict:
-        return {"edge_attr": torch.rand((self.GRID_SIZE, 128)), "edge_index": torch.randint(0, self.GRID_SIZE, (2, self.GRID_SIZE))}
+        return {
+            "edge_attr": torch.rand((self.GRID_SIZE, 128)),
+            "edge_index": torch.randint(0, self.GRID_SIZE, (2, self.GRID_SIZE)),
+        }
 
     def test_initialization(self, mapper, mapper_init):
         (

@@ -77,7 +77,8 @@ class AnemoiModelEncProcDec(nn.Module):
             self.encoders[data] = instantiate(
                 config.model.encoder,
                 in_channels_src=input_dim + self.num_node_features[data] + self.num_trainable_params[data],
-                in_channels_dst=self.num_node_features[self._graph_name_hidden] + self.num_trainable_params[self._graph_name_hidden],
+                in_channels_dst=self.num_node_features[self._graph_name_hidden]
+                + self.num_trainable_params[self._graph_name_hidden],
                 hidden_dim=self.num_channels,
                 sub_graph=self._graph_data[(data, "to", self._graph_name_hidden)],
                 src_grid_size=self.num_nodes[data],
@@ -128,9 +129,12 @@ class AnemoiModelEncProcDec(nn.Module):
     def _define_tensor_sizes(self, config: DotConfig) -> None:
         # Define Sizes of different tensors
         self.num_nodes = {name: self._graph_data[name]["coords"].shape[0] for name in self._graph_mesh_names}
-        self.num_node_features = {name: 2 * self._graph_data[name]["coords"].shape[1] for name in self._graph_mesh_names}
+        self.num_node_features = {
+            name: 2 * self._graph_data[name]["coords"].shape[1] for name in self._graph_mesh_names
+        }
         self.num_trainable_params = {
-            name: config.model.trainable_parameters.get("data" if name != "hidden" else name, 0) for name in self._graph_mesh_names
+            name: config.model.trainable_parameters.get("data" if name != "hidden" else name, 0)
+            for name in self._graph_mesh_names
         }
 
     def _register_latlon(self, name: str) -> None:
@@ -147,7 +151,9 @@ class AnemoiModelEncProcDec(nn.Module):
         setattr(self, f"trainable_{name}", trainable_tensor)
         self.register_buffer(
             f"latlons_{name}",
-            torch.cat([torch.sin(self._graph_data[name]["coords"]), torch.cos(self._graph_data[name]["coords"])], dim=-1),
+            torch.cat(
+                [torch.sin(self._graph_data[name]["coords"]), torch.cos(self._graph_data[name]["coords"])], dim=-1
+            ),
             persistent=True,
         )
 

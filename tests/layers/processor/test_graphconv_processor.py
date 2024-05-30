@@ -17,7 +17,6 @@ def fake_graph() -> dict:
     return {"edge_attr": torch.rand((100, 128)), "edge_index": torch.randint(0, 100, (2, 100))}
 
 
-
 @pytest.fixture
 def graphconv_init(fake_graph):
     num_layers = 2
