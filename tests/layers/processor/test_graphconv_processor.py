@@ -7,18 +7,15 @@
 
 import pytest
 import torch
-from torch_geometric.data import HeteroData
 
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.processor import GNNProcessor
 
 
 @pytest.fixture
-def fake_graph():
-    graph = HeteroData()
-    graph.edge_attr = torch.rand((100, 128))
-    graph.edge_index = torch.randint(0, 100, (2, 100))
-    return graph
+def fake_graph() -> dict:
+    return {"edge_attr": torch.rand((100, 128)), "edge_index": torch.randint(0, 100, (2, 100))}
+
 
 
 @pytest.fixture

@@ -16,7 +16,6 @@ from torch import Tensor
 from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
 from torch.distributed.distributed_c10d import ProcessGroup
-from torch_geometric.data import HeteroData
 from torch_geometric.typing import Adj
 from torch_geometric.typing import PairTensor
 
@@ -113,12 +112,12 @@ class ForwardMapperPreProcessMixin:
 
 
 class GraphEdgeMixin:
-    def _register_edges(self, sub_graph: HeteroData, src_size: int, dst_size: int, trainable_size: int) -> None:
+    def _register_edges(self, sub_graph: dict, src_size: int, dst_size: int, trainable_size: int) -> None:
         """Register edge dim, attr, index_base, and increment.
 
         Parameters
         ----------
-        sub_graph : HeteroData
+        sub_graph : dict
             Sub graph of the full structure
         src_size : int
             Source size
@@ -127,9 +126,9 @@ class GraphEdgeMixin:
         trainable_size : int
             Trainable tensor size
         """
-        self.edge_dim = sub_graph.edge_attr.shape[1] + trainable_size
-        self.register_buffer("edge_attr", sub_graph.edge_attr, persistent=False)
-        self.register_buffer("edge_index_base", sub_graph.edge_index, persistent=False)
+        self.edge_dim = sub_graph["edge_attr"].shape[1] + trainable_size
+        self.register_buffer("edge_attr", sub_graph["edge_attr"], persistent=False)
+        self.register_buffer("edge_index_base", sub_graph["edge_index"], persistent=False)
         self.register_buffer(
             "edge_inc", torch.from_numpy(np.asarray([[src_size], [dst_size]], dtype=np.int64)), persistent=True
         )
@@ -173,7 +172,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
         activation: str = "GELU",
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -273,7 +272,7 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
         activation: str = "GELU",
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -344,7 +343,7 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
         activation: str = "GELU",
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -414,7 +413,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
         cpu_offload: bool = False,
         activation: str = "SiLU",
         mlp_extra_layers: int = 0,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -517,7 +516,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
         cpu_offload: bool = False,
         activation: str = "SiLU",
         mlp_extra_layers: int = 0,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -601,7 +600,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
         cpu_offload: bool = False,
         activation: str = "SiLU",
         mlp_extra_layers: int = 0,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:

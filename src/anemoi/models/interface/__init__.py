@@ -12,8 +12,8 @@ import uuid
 import torch
 from anemoi.utils.config import DotConfig
 from hydra.utils import instantiate
-from torch_geometric.data import HeteroData
 
+from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
 from anemoi.models.preprocessing import Processors
 
@@ -22,7 +22,7 @@ class AnemoiModelInterface(torch.nn.Module):
     """Anemoi model on torch level."""
 
     def __init__(
-        self, *, config: DotConfig, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict
+        self, *, config: DotConfig, graph_data: dict, statistics: dict, data_indices: IndexCollection, metadata: dict
     ) -> None:
         super().__init__()
         self.config = config
