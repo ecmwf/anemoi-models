@@ -10,12 +10,12 @@
 import uuid
 
 import torch
+from anemoi.utils.config import DotConfig
 from hydra.utils import instantiate
 from torch_geometric.data import HeteroData
 
 from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
 from anemoi.models.preprocessing import Processors
-from anemoi.utils.config import DotConfig
 
 
 class AnemoiModelInterface(torch.nn.Module):

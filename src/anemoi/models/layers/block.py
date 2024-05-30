@@ -491,7 +491,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
 
         query, key, value, edges = self.shard_qkve_heads(query, key, value, edges, shapes, batch_size, model_comm_group)
 
-        # TODO: Is this alright?
+        # TODO: remove magic number
         num_chunks = self.num_chunks if self.training else 4  # reduce memory for inference
 
         if num_chunks > 1:
