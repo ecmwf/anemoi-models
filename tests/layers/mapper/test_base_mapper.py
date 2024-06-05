@@ -7,7 +7,6 @@
 
 import pytest
 import torch
-from torch_geometric.data import HeteroData
 
 from anemoi.models.layers.mapper import BaseMapper
 
@@ -71,11 +70,8 @@ class TestBaseMapper:
         )
 
     @pytest.fixture
-    def fake_graph(self):
-        graph = HeteroData()
-        graph.edge_attr = torch.rand((100, 128))
-        graph.edge_index = torch.randint(0, 100, (2, 100))
-        return graph
+    def fake_graph(self) -> dict:
+        return {"edge_attr": torch.rand((100, 128)), "edge_index": torch.randint(0, 100, (2, 100))}
 
     def test_initialization(self, mapper, mapper_init):
         (

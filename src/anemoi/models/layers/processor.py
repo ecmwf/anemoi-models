@@ -15,7 +15,6 @@ from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
 from torch.distributed.distributed_c10d import ProcessGroup
 from torch.utils.checkpoint import checkpoint
-from torch_geometric.data import HeteroData
 
 from anemoi.models.distributed.graph import shard_tensor
 from anemoi.models.distributed.khop_edges import sort_edges_1hop
@@ -170,7 +169,7 @@ class GNNProcessor(GraphEdgeMixin, BaseProcessor):
         mlp_extra_layers: int = 0,
         activation: str = "SiLU",
         cpu_offload: bool = False,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
         **kwargs,
@@ -257,7 +256,7 @@ class GraphTransformerProcessor(GraphEdgeMixin, BaseProcessor):
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
         cpu_offload: bool = False,
-        sub_graph: Optional[HeteroData] = None,
+        sub_graph: Optional[dict] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
         **kwargs,
