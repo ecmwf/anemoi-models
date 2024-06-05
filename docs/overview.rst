@@ -7,8 +7,16 @@ development of machine learning models for data-driven weather
 forecasting. The anemoi-models package lies at the core of this
 framework, providing core components to train graph neural networks
 (GNNs), including graph transformers for data-driven weather
-forecasting. Below is a detailed breakdown of the main components within
-the anemoi-models package:
+forecasting.
+
+The anemoi-models package has the following dependencies in the code:
+
+.. figure:: schemas/anemoi-models_schematic.png
+   :alt: Dependencies and initial structure of anemoi models
+   :align: center
+
+Below is a detailed breakdown of these main components within the
+anemoi-models package:
 
 ***********
  Interface
