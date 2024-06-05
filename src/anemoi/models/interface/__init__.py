@@ -26,7 +26,7 @@ class AnemoiModelInterface(torch.nn.Module):
 
     Attributes
     ----------
-    config : DotConfig
+    config : DotDict
         Configuration settings for the model.
     id : str
         A unique identifier for the model instance.
