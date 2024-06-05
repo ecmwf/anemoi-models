@@ -12,7 +12,7 @@ from typing import Optional
 
 import einops
 import torch
-from anemoi.utils.config import DotConfig
+from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
 from torch import Tensor
 from torch import nn
@@ -32,7 +32,7 @@ class AnemoiModelEncProcDec(nn.Module):
     def __init__(
         self,
         *,
-        config: DotConfig,
+        config: DotDict,
         data_indices: IndexCollection,
         graph_data: dict,
     ) -> None:
@@ -130,7 +130,7 @@ class AnemoiModelEncProcDec(nn.Module):
             self._internal_output_idx,
         ), f"Model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
 
-    def _define_tensor_sizes(self, config: DotConfig, graph_data: dict) -> None:
+    def _define_tensor_sizes(self, config: DotDict, graph_data: dict) -> None:
         # Define Sizes of different tensors
         self.num_nodes = {name: graph_data[name]["coords"].shape[0] for name in self._graph_mesh_names}
         self.num_node_features = {name: 2 * graph_data[name]["coords"].shape[1] for name in self._graph_mesh_names}

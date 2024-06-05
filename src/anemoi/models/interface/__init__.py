@@ -10,7 +10,7 @@
 import uuid
 
 import torch
-from anemoi.utils.config import DotConfig
+from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
 
 from anemoi.models.data_indices.collection import IndexCollection
@@ -22,7 +22,7 @@ class AnemoiModelInterface(torch.nn.Module):
     """Anemoi model on torch level."""
 
     def __init__(
-        self, *, config: DotConfig, graph_data: dict, statistics: dict, data_indices: IndexCollection, metadata: dict
+        self, *, config: DotDict, graph_data: dict, statistics: dict, data_indices: IndexCollection, metadata: dict
     ) -> None:
         super().__init__()
         self.config = config
