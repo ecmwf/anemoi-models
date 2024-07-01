@@ -127,8 +127,12 @@ class GraphEdgeMixin:
         trainable_size : int
             Trainable tensor size
         """
-        self.edge_dim = sub_graph.edge_attr.shape[1] + trainable_size
-        self.register_buffer("edge_attr", sub_graph.edge_attr, persistent=False)
+        edge_attrs = sub_graph.edge_attrs()
+        edge_attrs.remove("edge_index")
+        edge_attr_tensor = torch.cat([sub_graph[attr] for attr in edge_attrs], axis=1)
+
+        self.edge_dim = edge_attr_tensor.shape[1] + trainable_size
+        self.register_buffer("edge_attr", edge_attr_tensor, persistent=False)
         self.register_buffer("edge_index_base", sub_graph.edge_index, persistent=False)
         self.register_buffer(
             "edge_inc", torch.from_numpy(np.asarray([[src_size], [dst_size]], dtype=np.int64)), persistent=True

@@ -61,9 +61,9 @@ class AnemoiModelEncProcDec(nn.Module):
         # Create trainable tensors
         self._create_trainable_attributes()
 
-        # Register lat/lon
-        self._register_latlon("data", self._graph_name_data)
-        self._register_latlon("hidden", self._graph_name_hidden)
+        # Register lat/lon of nodes
+        for nodes_name in self._graph_data.node_types:
+            self._register_latlon(nodes_name)
 
         self.num_channels = config.model.num_channels
 
@@ -120,38 +120,23 @@ class AnemoiModelEncProcDec(nn.Module):
         ), f"Model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
 
     def _define_tensor_sizes(self, config: DotDict) -> None:
-        # Define Sizes of different tensors
-        self._data_grid_size = self._graph_data[(self._graph_name_data, "to", self._graph_name_data)].ecoords_rad.shape[
-            0
-        ]
-        self._hidden_grid_size = self._graph_data[
-            (self._graph_name_hidden, "to", self._graph_name_hidden)
-        ].hcoords_rad.shape[0]
+        self._data_grid_size = self._graph_data[self._graph_name_data].num_nodes
+        self._hidden_grid_size = self._graph_data[self._graph_name_hidden].num_nodes
 
         self.trainable_data_size = config.model.trainable_parameters.data
         self.trainable_hidden_size = config.model.trainable_parameters.hidden
 
-    def _register_latlon(self, name: str, key: str) -> None:
+    def _register_latlon(self, nodes_name: str) -> None:
         """Register lat/lon buffers.
 
         Parameters
         ----------
-        name : str
-            Name of grid to map
-        key : str
-            Key of the grid
+        nodes_name : str
+            Name of nodes to map
         """
-        self.register_buffer(
-            f"latlons_{name}",
-            torch.cat(
-                [
-                    torch.sin(self._graph_data[(key, "to", key)][f"{key[:1]}coords_rad"]),
-                    torch.cos(self._graph_data[(key, "to", key)][f"{key[:1]}coords_rad"]),
-                ],
-                dim=-1,
-            ),
-            persistent=True,
-        )
+        coords = self._graph_data[nodes_name].x
+        sin_cos_coords = torch.cat([torch.sin(coords), torch.cos(coords)], dim=-1)
+        self.register_buffer(f"latlons_{nodes_name}", sin_cos_coords, persistent=True)
 
     def _create_trainable_attributes(self) -> None:
         """Create all trainable attributes."""
