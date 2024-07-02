@@ -91,10 +91,13 @@ class TestGraphTransformerBaseMapper:
     def fake_graph(self) -> HeteroData:
         """Fake graph."""
         graph = HeteroData()
-        graph[("src", "to", "dst")].edge_index = torch.concat([
-            torch.randint(0, self.NUM_SRC_NODES, (1, self.NUM_EDGES)),
-            torch.randint(0, self.NUM_DST_NODES, (1, self.NUM_EDGES)),
-        ], axis=0)
+        graph[("src", "to", "dst")].edge_index = torch.concat(
+            [
+                torch.randint(0, self.NUM_SRC_NODES, (1, self.NUM_EDGES)),
+                torch.randint(0, self.NUM_DST_NODES, (1, self.NUM_EDGES)),
+            ],
+            axis=0,
+        )
         graph[("src", "to", "dst")].edge_attr1 = torch.rand((self.NUM_EDGES, 1))
         graph[("src", "to", "dst")].edge_attr2 = torch.rand((self.NUM_EDGES, 32))
         return graph
