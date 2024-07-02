@@ -62,7 +62,7 @@ class TestGraphTransformerBaseMapper:
             out_channels_dst=out_channels_dst,
             cpu_offload=cpu_offload,
             activation=activation,
-            sub_graph=fake_graph,
+            sub_graph=fake_graph[("nodes", "to", "nodes")],
             trainable_size=trainable_size,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
@@ -87,10 +87,14 @@ class TestGraphTransformerBaseMapper:
         )
 
     @pytest.fixture
-    def fake_graph(self):
+    def fake_graph(self) -> HeteroData:
+        """Fake graph."""
+        num_nodes = 1000
         graph = HeteroData()
-        graph.edge_attr = torch.rand((self.GRID_SIZE, 128))
-        graph.edge_index = torch.randint(0, self.GRID_SIZE, (2, self.GRID_SIZE))
+        graph["nodes"].x = torch.rand((num_nodes, 2))
+        graph[("nodes", "to", "nodes")].edge_index = torch.randint(0, num_nodes, (2, self.GRID_SIZE))
+        graph[("nodes", "to", "nodes")].edge_attr1 = torch.rand((self.GRID_SIZE, 1))
+        graph[("nodes", "to", "nodes")].edge_attr2 = torch.rand((self.GRID_SIZE, 32))
         return graph
 
     def test_initialization(self, mapper, mapper_init):
@@ -172,7 +176,7 @@ class TestGraphTransformerForwardMapper(TestGraphTransformerBaseMapper):
             out_channels_dst=out_channels_dst,
             cpu_offload=cpu_offload,
             activation=activation,
-            sub_graph=fake_graph,
+            sub_graph=fake_graph[("nodes", "to", "nodes")],
             trainable_size=trainable_size,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
@@ -268,7 +272,7 @@ class TestGraphTransformerBackwardMapper(TestGraphTransformerBaseMapper):
             out_channels_dst=out_channels_dst,
             cpu_offload=cpu_offload,
             activation=activation,
-            sub_graph=fake_graph,
+            sub_graph=fake_graph[("nodes", "to", "nodes")],
             trainable_size=trainable_size,
         )
 

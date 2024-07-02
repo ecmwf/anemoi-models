@@ -12,17 +12,22 @@ from torch_geometric.data import HeteroData
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.processor import GraphTransformerProcessor
 
+num_edges: int = 200
+
 
 @pytest.fixture
-def fake_graph():
+def fake_graph() -> HeteroData:
+    num_nodes = 100
     graph = HeteroData()
-    graph.edge_attr = torch.rand((100, 128))
-    graph.edge_index = torch.randint(0, 100, (2, 100))
+    graph["nodes"].x = torch.rand((num_nodes, 2))
+    graph[("nodes", "to", "nodes")].edge_index = torch.randint(0, num_nodes, (2, num_edges))
+    graph[("nodes", "to", "nodes")].edge_attr1 = torch.rand((num_edges, 3))
+    graph[("nodes", "to", "nodes")].edge_attr2 = torch.rand((num_edges, 4))
     return graph
 
 
 @pytest.fixture
-def graphtransformer_init(fake_graph):
+def graphtransformer_init(fake_graph: HeteroData):
     num_layers = 2
     num_channels = 128
     num_chunks = 2
@@ -30,7 +35,7 @@ def graphtransformer_init(fake_graph):
     mlp_hidden_ratio = 4
     activation = "GELU"
     cpu_offload = False
-    sub_graph = fake_graph
+    sub_graph = fake_graph[("nodes", "to", "nodes")]
     src_grid_size = 0
     dst_grid_size = 0
     trainable_size = 6
@@ -100,7 +105,6 @@ def test_graphtransformer_processor_init(graphtransformer_processor, graphtransf
 
 
 def test_forward(graphtransformer_processor, graphtransformer_init):
-    gridpoints = 100
     batch_size = 1
     (
         _num_layers,
@@ -115,16 +119,16 @@ def test_forward(graphtransformer_processor, graphtransformer_init):
         _dst_grid_size,
         trainable_size,
     ) = graphtransformer_init
-    x = torch.rand((gridpoints, num_channels))
+    x = torch.rand((num_edges, num_channels))
     shard_shapes = [list(x.shape)]
 
     # Run forward pass of processor
     output = graphtransformer_processor.forward(x, batch_size, shard_shapes)
-    assert output.shape == (gridpoints, num_channels)
+    assert output.shape == (num_edges, num_channels)
 
     # Generate dummy target and loss function
     loss_fn = torch.nn.MSELoss()
-    target = torch.rand((gridpoints, num_channels))
+    target = torch.rand((num_edges, num_channels))
     loss = loss_fn(output, target)
 
     # Check loss
@@ -135,7 +139,7 @@ def test_forward(graphtransformer_processor, graphtransformer_init):
 
     # Check gradients of trainable tensor
     assert graphtransformer_processor.trainable.trainable.grad.shape == (
-        gridpoints,
+        num_edges,
         trainable_size,
     )
 
