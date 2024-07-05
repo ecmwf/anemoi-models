@@ -22,8 +22,8 @@ class TestGNNBaseMapper:
 
     @pytest.fixture
     def mapper_init(self):
-        in_channels_src: int = 2
-        in_channels_dst: int = 2
+        in_channels_src: int = 3
+        in_channels_dst: int = 4
         hidden_dim: int = 256
         out_channels_dst: int = 8
         cpu_offload: bool = False
