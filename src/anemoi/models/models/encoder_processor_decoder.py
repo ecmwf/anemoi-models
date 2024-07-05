@@ -131,7 +131,9 @@ class AnemoiModelEncProcDec(nn.Module):
 
         Parameters
         ----------
-        nodes_name : str
+        name : str
+            Name to store the lat-lon coordinates of the nodes.
+        nodes : str
             Name of nodes to map
         """
         coords = self._graph_data[nodes].x
