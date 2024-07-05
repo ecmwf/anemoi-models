@@ -62,8 +62,8 @@ class AnemoiModelEncProcDec(nn.Module):
         self._create_trainable_attributes()
 
         # Register lat/lon of nodes
-        for nodes_name in self._graph_data.node_types:
-            self._register_latlon(nodes_name)
+        self._register_latlon("data", self._graph_name_data)
+        self._register_latlon("hidden", self._graph_name_hidden)
 
         self.num_channels = config.model.num_channels
 
@@ -126,7 +126,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self.trainable_data_size = config.model.trainable_parameters.data
         self.trainable_hidden_size = config.model.trainable_parameters.hidden
 
-    def _register_latlon(self, nodes_name: str) -> None:
+    def _register_latlon(self, name: str, nodes: str) -> None:
         """Register lat/lon buffers.
 
         Parameters
@@ -134,9 +134,9 @@ class AnemoiModelEncProcDec(nn.Module):
         nodes_name : str
             Name of nodes to map
         """
-        coords = self._graph_data[nodes_name].x
+        coords = self._graph_data[nodes].x
         sin_cos_coords = torch.cat([torch.sin(coords), torch.cos(coords)], dim=-1)
-        self.register_buffer(f"latlons_{nodes_name}", sin_cos_coords, persistent=True)
+        self.register_buffer(f"latlons_{name}", sin_cos_coords, persistent=True)
 
     def _create_trainable_attributes(self) -> None:
         """Create all trainable attributes."""
