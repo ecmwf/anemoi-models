@@ -35,6 +35,7 @@ def graphconv_init(fake_graph: HeteroData):
     activation = "SiLU"
     cpu_offload = False
     sub_graph = fake_graph[("nodes", "to", "nodes")]
+    edge_attributes = ["edge_attr1", "edge_attr2"]
     src_grid_size = 0
     dst_grid_size = 0
     trainable_size = 8
@@ -46,6 +47,7 @@ def graphconv_init(fake_graph: HeteroData):
         activation,
         cpu_offload,
         sub_graph,
+        edge_attributes,
         src_grid_size,
         dst_grid_size,
         trainable_size,
@@ -62,6 +64,7 @@ def graphconv_processor(graphconv_init):
         activation,
         cpu_offload,
         sub_graph,
+        edge_attributes,
         src_grid_size,
         dst_grid_size,
         trainable_size,
@@ -74,6 +77,7 @@ def graphconv_processor(graphconv_init):
         activation=activation,
         cpu_offload=cpu_offload,
         sub_graph=sub_graph,
+        sub_graph_edge_attributes=edge_attributes,
         src_grid_size=src_grid_size,
         dst_grid_size=dst_grid_size,
         trainable_size=trainable_size,
@@ -89,6 +93,7 @@ def test_graphconv_processor_init(graphconv_processor, graphconv_init):
         _activation,
         _cpu_offload,
         _sub_graph,
+        _edge_attributes,
         _src_grid_size,
         _dst_grid_size,
         _trainable_size,
@@ -109,6 +114,7 @@ def test_forward(graphconv_processor, graphconv_init):
         _activation,
         _cpu_offload,
         _sub_graph,
+        _edge_attributes,
         _src_grid_size,
         _dst_grid_size,
         trainable_size,

@@ -55,6 +55,7 @@ class TestBaseMapper:
             cpu_offload=cpu_offload,
             activation=activation,
             sub_graph=fake_graph[("src", "to", "dst")],
+            sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
             trainable_size=trainable_size,
         )
 

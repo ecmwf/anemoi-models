@@ -64,6 +64,7 @@ class TestGraphTransformerBaseMapper:
             cpu_offload=cpu_offload,
             activation=activation,
             sub_graph=fake_graph[("src", "to", "dst")],
+            sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
             trainable_size=trainable_size,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
@@ -182,6 +183,7 @@ class TestGraphTransformerForwardMapper(TestGraphTransformerBaseMapper):
             cpu_offload=cpu_offload,
             activation=activation,
             sub_graph=fake_graph[("src", "to", "dst")],
+            sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
             trainable_size=trainable_size,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
@@ -278,6 +280,7 @@ class TestGraphTransformerBackwardMapper(TestGraphTransformerBaseMapper):
             cpu_offload=cpu_offload,
             activation=activation,
             sub_graph=fake_graph[("src", "to", "dst")],
+            sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
             trainable_size=trainable_size,
         )
 
