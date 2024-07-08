@@ -42,6 +42,8 @@ class AnemoiModelEncProcDec(nn.Module):
         ----------
         config : DotDict
             Job configuration
+        data_indices : dict
+            Data indices
         graph_data : HeteroData
             Graph definition
         """
@@ -50,6 +52,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self._graph_data = graph_data
         self._graph_name_data = config.graph.data
         self._graph_name_hidden = config.graph.hidden
+        self.edge_attributes = config.model.attributes.edges
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
@@ -76,6 +79,7 @@ class AnemoiModelEncProcDec(nn.Module):
             in_channels_dst=self.latlons_hidden.shape[1] + self.trainable_hidden_size,
             hidden_dim=self.num_channels,
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_name_hidden)],
+            sub_graph_edge_attributes=self.edge_attributes,
             src_grid_size=self._data_grid_size,
             dst_grid_size=self._hidden_grid_size,
         )
@@ -85,6 +89,7 @@ class AnemoiModelEncProcDec(nn.Module):
             config.model.processor,
             num_channels=self.num_channels,
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
+            sub_graph_edge_attributes=self.edge_attributes,
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._hidden_grid_size,
         )
@@ -97,6 +102,7 @@ class AnemoiModelEncProcDec(nn.Module):
             hidden_dim=self.num_channels,
             out_channels_dst=self.num_output_channels,
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_data)],
+            sub_graph_edge_attributes=self.edge_attributes,
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._data_grid_size,
         )

@@ -7,6 +7,7 @@
 # nor does it submit to any jurisdiction.
 #
 
+import logging
 from abc import ABC
 from typing import Optional
 
@@ -29,6 +30,8 @@ from anemoi.models.layers.block import GraphConvMapperBlock
 from anemoi.models.layers.block import GraphTransformerMapperBlock
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.mlp import MLP
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BaseMapper(nn.Module, ABC):
@@ -113,13 +116,17 @@ class ForwardMapperPreProcessMixin:
 
 
 class GraphEdgeMixin:
-    def _register_edges(self, sub_graph: HeteroData, src_size: int, dst_size: int, trainable_size: int) -> None:
+    def _register_edges(
+        self, sub_graph: HeteroData, edge_attributes: list[str], src_size: int, dst_size: int, trainable_size: int
+    ) -> None:
         """Register edge dim, attr, index_base, and increment.
 
         Parameters
         ----------
         sub_graph : HeteroData
             Sub graph of the full structure
+        edge_attributes : list[str]
+            Edge attributes to use.
         src_size : int
             Source size
         dst_size : int
@@ -127,9 +134,11 @@ class GraphEdgeMixin:
         trainable_size : int
             Trainable tensor size
         """
-        edge_attrs = sub_graph.edge_attrs()
-        edge_attrs.remove("edge_index")
-        edge_attr_tensor = torch.cat([sub_graph[attr] for attr in edge_attrs], axis=1)
+        if edge_attributes is None:
+            LOGGER.warning("No edge attributes provided.")
+            edge_attributes = []
+
+        edge_attr_tensor = torch.cat([sub_graph[attr] for attr in edge_attributes], axis=1)
 
         self.edge_dim = edge_attr_tensor.shape[1] + trainable_size
         self.register_buffer("edge_attr", edge_attr_tensor, persistent=False)
@@ -178,6 +187,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         sub_graph: Optional[HeteroData] = None,
+        sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -214,7 +224,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             activation=activation,
         )
 
-        self._register_edges(sub_graph, src_grid_size, dst_grid_size, trainable_size)
+        self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
 
         self.trainable = TrainableTensor(trainable_size=trainable_size, tensor_size=self.edge_attr.shape[0])
 
@@ -419,6 +429,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
         activation: str = "SiLU",
         mlp_extra_layers: int = 0,
         sub_graph: Optional[HeteroData] = None,
+        sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
     ) -> None:
@@ -455,7 +466,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
             activation=activation,
         )
 
-        self._register_edges(sub_graph, src_grid_size, dst_grid_size, trainable_size)
+        self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
 
         self.emb_edges = MLP(
             in_features=self.edge_dim,

@@ -258,6 +258,7 @@ class GraphTransformerProcessor(GraphEdgeMixin, BaseProcessor):
         activation: str = "GELU",
         cpu_offload: bool = False,
         sub_graph: Optional[HeteroData] = None,
+        sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
         **kwargs,
@@ -291,7 +292,7 @@ class GraphTransformerProcessor(GraphEdgeMixin, BaseProcessor):
             mlp_hidden_ratio=mlp_hidden_ratio,
         )
 
-        self._register_edges(sub_graph, src_grid_size, dst_grid_size, trainable_size)
+        self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
 
         self.trainable = TrainableTensor(trainable_size=trainable_size, tensor_size=self.edge_attr.shape[0])
 
