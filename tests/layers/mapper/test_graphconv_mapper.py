@@ -17,6 +17,7 @@ from anemoi.models.layers.mapper import GNNForwardMapper
 
 class TestGNNBaseMapper:
     """Test the GNNBaseMapper class."""
+
     NUM_SRC_NODES: int = 200
     NUM_DST_NODES: int = 178
     NUM_EDGES: int = 300
@@ -150,6 +151,7 @@ class TestGNNBaseMapper:
 
 class TestGNNForwardMapper(TestGNNBaseMapper):
     """Test the GNNForwardMapper class."""
+
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
         (
@@ -240,6 +242,7 @@ class TestGNNForwardMapper(TestGNNBaseMapper):
 
 class TestGNNBackwardMapper(TestGNNBaseMapper):
     """Test the GNNBackwardMapper class."""
+
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
         (

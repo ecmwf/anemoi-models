@@ -14,6 +14,7 @@ from anemoi.models.layers.mapper import BaseMapper
 
 class TestBaseMapper:
     """Test the BaseMapper class."""
+
     NUM_EDGES: int = 100
     NUM_SRC_NODES: int = 100
     NUM_DST_NODES: int = 200

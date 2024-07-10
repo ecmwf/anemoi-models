@@ -15,6 +15,7 @@ from anemoi.models.layers.processor import GNNProcessor
 
 class TestGNNProcessor:
     """Test the GNNProcessor class."""
+
     NUM_NODES: int = 100
     NUM_EDGES: int = 200
 

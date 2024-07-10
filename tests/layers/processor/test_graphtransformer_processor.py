@@ -15,6 +15,7 @@ from anemoi.models.layers.processor import GraphTransformerProcessor
 
 class TestGraphTransformerProcessor:
     """Test the GraphTransformerProcessor class."""
+
     NUM_NODES: int = 100
     NUM_EDGES: int = 200
 
@@ -55,7 +56,6 @@ class TestGraphTransformerProcessor:
             dst_grid_size,
             trainable_size,
         )
-
 
     @pytest.fixture
     def graphtransformer_processor(self, graphtransformer_init):
