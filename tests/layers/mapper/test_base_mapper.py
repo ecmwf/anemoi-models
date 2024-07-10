@@ -13,9 +13,10 @@ from anemoi.models.layers.mapper import BaseMapper
 
 
 class TestBaseMapper:
-    NUM_EDGES = 100
-    NUM_SRC_NODES = 100
-    NUM_DST_NODES = 200
+    """Test the BaseMapper class."""
+    NUM_EDGES: int = 100
+    NUM_SRC_NODES: int = 100
+    NUM_DST_NODES: int = 200
 
     @pytest.fixture
     def mapper_init(self):

@@ -16,9 +16,10 @@ from anemoi.models.layers.mapper import GraphTransformerForwardMapper
 
 
 class TestGraphTransformerBaseMapper:
-    NUM_EDGES = 150
-    NUM_SRC_NODES = 100
-    NUM_DST_NODES = 200
+    """Test the GraphTransformerBaseMapper class."""
+    NUM_EDGES: int = 150
+    NUM_SRC_NODES: int = 100
+    NUM_DST_NODES: int = 200
 
     @pytest.fixture
     def mapper_init(self):
@@ -162,6 +163,7 @@ class TestGraphTransformerBaseMapper:
 
 
 class TestGraphTransformerForwardMapper(TestGraphTransformerBaseMapper):
+    """Test the GraphTransformerForwardMapper class."""
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
         (
@@ -259,6 +261,7 @@ class TestGraphTransformerForwardMapper(TestGraphTransformerBaseMapper):
 
 
 class TestGraphTransformerBackwardMapper(TestGraphTransformerBaseMapper):
+    """Test the GraphTransformerBackwardMapper class."""
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
         (
