@@ -24,7 +24,7 @@ Keep it human-readable, your future self will thank you!
 
 ### Changed
 
-- Updated to support new PyTorch Geometric HeteroData structure (defined by `anemoi-graphs` package). 
+- Updated to support new PyTorch Geometric HeteroData structure (defined by `anemoi-graphs` package).
 
 ### Removed
 
