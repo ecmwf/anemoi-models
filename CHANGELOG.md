@@ -11,6 +11,7 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
+- configurabilty of the dropout probability in the the MultiHeadSelfAttention module
 
 ### Changed
 
