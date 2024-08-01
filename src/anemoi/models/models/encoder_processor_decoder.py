@@ -21,6 +21,7 @@ from torch.utils.checkpoint import checkpoint
 from torch_geometric.data import HeteroData
 
 from anemoi.models.distributed.shapes import get_shape_shards
+from anemoi.models.models.bounding import BaseBoundingStrategy
 from anemoi.models.layers.graph import TrainableTensor
 
 LOGGER = logging.getLogger(__name__)
@@ -66,6 +67,18 @@ class AnemoiModelEncProcDec(nn.Module):
         # Register lat/lon of nodes
         self._register_latlon("data", self._graph_name_data)
         self._register_latlon("hidden", self._graph_name_hidden)
+
+        # Variables affected by the activation function
+        def create_bounding_strategy(config: DotDict) -> BaseBoundingStrategy:
+            return instantiate(config)
+
+        self.data_indices = data_indices
+        if config.training.bounding_strategies is not None:
+            self.bounding_strategies = {
+                var: create_bounding_strategy(cfg) for var, cfg in config.training.bounding_strategies.items()
+            }
+        else:
+            self.bounding_strategies = {}
 
         self.num_channels = config.model.num_channels
 
@@ -250,4 +263,24 @@ class AnemoiModelEncProcDec(nn.Module):
 
         # residual connection (just for the prognostic variables)
         x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
+
+        for var, strategy in self.bounding_strategies.items():  # bounding performed in the order specified in the config file
+            indices = []
+            indices.append(self.data_indices.model.output.name_to_index[var])
+
+            # Special case when fraction activation is used var = frac * var_total
+            if strategy.__class__.__name__ == "FractionHardtanhBoundingStrategy":
+                indices.append(self.data_indices.model.output.name_to_index[strategy.total_var])
+            elif strategy.__class__.__name__ == "CustomFractionHardtanhBoundingStrategy":
+                indices.extend(
+                    [
+                        self.data_indices.model.output.name_to_index[strategy.first_var],
+                        self.data_indices.model.output.name_to_index[strategy.second_var],
+                    ],
+                )
+
+            activated_var = strategy.apply(x_out, indices)
+            x_out = x_out.clone()  # needed to avoid inplace operation error during backpropagation
+            x_out[..., self.data_indices.model.output.name_to_index[var]] = activated_var
+
         return x_out
