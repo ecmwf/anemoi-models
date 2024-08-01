@@ -40,6 +40,18 @@ class InputNormalizer(BasePreprocessor):
         data_indices : dict
             Data indices for input and output variables
         """
+        # The only rapid way I found to avoid the _validate_normalization_inputs assert...
+        fraction_normalisation_list = config.get("fraction_normalisation")
+        total_indexes = []
+        fraction_indexes = []
+        if fraction_normalisation_list is not None:
+            fraction_normalisation_list = config["fraction_normalisation"]
+            for fraction_group in fraction_normalisation_list:
+                total_indexes.append(data_indices.data.input.name_to_index[fraction_group[0]])
+                fraction_indexes.append(data_indices.data.input.name_to_index[fraction_group[1]])
+
+        if "fraction_normalisation" in config:
+            del config["fraction_normalisation"]
         super().__init__(config, statistics, data_indices)
 
         name_to_index_training_input = self.data_indices.data.input.name_to_index
@@ -48,6 +60,9 @@ class InputNormalizer(BasePreprocessor):
         maximum = statistics["maximum"]
         mean = statistics["mean"]
         stdev = statistics["stdev"]
+
+        for i in range(len(total_indexes)):
+            stdev[fraction_indexes[i]] = stdev[total_indexes[i]]
 
         self._validate_normalization_inputs(name_to_index_training_input, minimum, maximum, mean, stdev)
 
@@ -62,7 +77,12 @@ class InputNormalizer(BasePreprocessor):
                     warnings.warn(f"Normalizing: the field seems to have only one value {mean[i]}")
                 _norm_mul[i] = 1 / stdev[i]
                 _norm_add[i] = -mean[i] / stdev[i]
-
+            elif method == "std":
+                LOGGER.debug(f"Normalizing: {name} is std-normalised.")
+                if stdev[i] < (mean[i] * 1e-6):
+                    warnings.warn(f"Normalizing: the field seems to have only one value {mean[i]}")
+                _norm_mul[i] = 1 / stdev[i]
+                _norm_add[i] = 0.0
             elif method == "min-max":
                 LOGGER.debug(f"Normalizing: {name} is min-max-normalised to [0, 1].")
                 x = maximum[i] - minimum[i]
@@ -102,6 +122,7 @@ class InputNormalizer(BasePreprocessor):
             assert name in name_to_index_training_input, f"{name} is not a valid variable name"
             assert method in [
                 "mean-std",
+                "std",
                 # "robust",
                 "min-max",
                 "max",

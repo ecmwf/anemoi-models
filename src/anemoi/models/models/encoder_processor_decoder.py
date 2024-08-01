@@ -73,10 +73,12 @@ class AnemoiModelEncProcDec(nn.Module):
             return instantiate(config)
 
         self.data_indices = data_indices
-        if config.training.bounding_strategies is not None:
-            self.bounding_strategies = {
-                var: create_bounding_strategy(cfg) for var, cfg in config.training.bounding_strategies.items()
-            }
+        # Use getattr to safely access config.training.bounding_strategies or set it to None if it does not exist
+        bounding_strategies_config = getattr(config.training, "bounding_strategies", None)
+
+        # Check if bounding_strategies_config is not None and not empty
+        if bounding_strategies_config:
+            self.bounding_strategies = {var: create_bounding_strategy(cfg) for var, cfg in bounding_strategies_config.items()}
         else:
             self.bounding_strategies = {}
 
