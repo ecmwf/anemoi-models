@@ -21,9 +21,8 @@ from torch.utils.checkpoint import checkpoint
 from torch_geometric.data import HeteroData
 
 from anemoi.models.distributed.shapes import get_shape_shards
-from anemoi.models.models.bounding import BaseBoundingStrategy
 from anemoi.models.layers.graph import TrainableTensor
-
+from anemoi.models.models.bounding import BaseBoundingStrategy
 LOGGER = logging.getLogger(__name__)
 
 
@@ -78,7 +77,9 @@ class AnemoiModelEncProcDec(nn.Module):
 
         # Check if bounding_strategies_config is not None and not empty
         if bounding_strategies_config:
-            self.bounding_strategies = {var: create_bounding_strategy(cfg) for var, cfg in bounding_strategies_config.items()}
+            self.bounding_strategies = {
+                var: create_bounding_strategy(cfg) for var, cfg in bounding_strategies_config.items()
+            }
         else:
             self.bounding_strategies = {}
 
@@ -266,7 +267,10 @@ class AnemoiModelEncProcDec(nn.Module):
         # residual connection (just for the prognostic variables)
         x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
 
-        for var, strategy in self.bounding_strategies.items():  # bounding performed in the order specified in the config file
+        for (
+            var,
+            strategy,
+        ) in self.bounding_strategies.items():  # bounding performed in the order specified in the config file
             indices = []
             indices.append(self.data_indices.model.output.name_to_index[var])
 
