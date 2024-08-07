@@ -26,6 +26,7 @@ def non_default_input_imputer():
                 "imputer": {"default": "none", "mean": ["y"], "maximum": ["x"], "none": ["z"], "minimum": ["q"]},
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
+                "remapped": [],
             },
         },
     )
@@ -49,6 +50,7 @@ def default_input_imputer():
                 "imputer": {"default": "minimum"},
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
+                "remapped": [],
             },
         },
     )
@@ -86,6 +88,7 @@ def default_constant_imputer():
                 "imputer": {"default": "none", 0: ["x"], 3.0: ["y"], 22.7: ["z"], 10: ["q"]},
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
+                "remapped": [],
             },
         },
     )
@@ -103,6 +106,7 @@ def non_default_constant_imputer():
                 "imputer": {"default": 22.7},
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
+                "remapped": [],
             },
         },
     )
