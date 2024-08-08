@@ -16,6 +16,8 @@ Keep it human-readable, your future self will thank you!
 
 ### Changed
 
+- New error messages for wrongs graphs.
+
 ### Removed
 
 ## 0.2.0
