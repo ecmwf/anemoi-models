@@ -38,7 +38,7 @@ def non_default_input_imputer():
     }
     name_to_index = {"x": 0, "y": 1, "z": 2, "q": 3, "other": 4}
     data_indices = IndexCollection(config=config, name_to_index=name_to_index)
-    return InputImputer(config=config.data.imputer, statistics=statistics, data_indices=data_indices)
+    return InputImputer(config=config.data.imputer, data_indices=data_indices, statistics=statistics)
 
 
 @pytest.fixture()

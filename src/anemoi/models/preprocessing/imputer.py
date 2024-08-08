@@ -34,15 +34,14 @@ class BaseImputer(BasePreprocessor, ABC):
         ----------
         config : DotDict
             configuration object of the processor
-        statistics : dict
-            Data statistics dictionary
         data_indices : dict
             Data indices for input and output variables
+        statistics : dict
+            Data statistics dictionary
         """
-        super().__init__(config, statistics, data_indices)
+        super().__init__(config, data_indices, statistics)
 
         self.nan_locations = None
-        self.data_indices = data_indices
 
     def _validate_indices(self):
         assert len(self.index_training_input) == len(self.index_inference_input) <= len(self.replacement), (

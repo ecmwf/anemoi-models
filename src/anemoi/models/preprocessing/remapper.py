@@ -54,12 +54,12 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
         ----------
         config : DotDict
             configuration object of the processor
-        statistics : dict
-            Data statistics dictionary
         data_indices : dict
             Data indices for input and output variables
+        statistics : dict
+            Data statistics dictionary
         """
-        super().__init__(config, statistics, data_indices)
+        super().__init__(config, data_indices, statistics)
 
     def _validate_indices(self):
         assert len(self.index_training_input) == len(self.index_inference_input) <= len(self.remappers), (
@@ -256,7 +256,7 @@ class Remapper(BaseRemapperVariable):
         statistics: Optional[dict] = None,
         data_indices: Optional[dict] = None,
     ) -> None:
-        super().__init__(config, statistics, data_indices)
+        super().__init__(config, data_indices, statistics)
 
         self._create_remapping_indices(statistics)
 

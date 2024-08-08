@@ -23,8 +23,8 @@ class BasePreprocessor(nn.Module):
     def __init__(
         self,
         config=None,
-        statistics: Optional[dict] = None,
         data_indices: Optional[dict] = None,
+        statistics: Optional[dict] = None,
     ) -> None:
         """Initialize the preprocessor.
 
@@ -32,10 +32,10 @@ class BasePreprocessor(nn.Module):
         ----------
         config : DotDict
             configuration object of the processor
-        statistics : dict
-            Data statistics dictionary
         data_indices : dict
             Data indices for input and output variables
+        statistics : dict
+            Data statistics dictionary
         """
         super().__init__()
 
