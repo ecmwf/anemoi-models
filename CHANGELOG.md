@@ -16,10 +16,19 @@ Keep it human-readable, your future self will thank you!
 - CI workflow to update the changelog on release
 
 ### Changed
+
  - Update CI to inherit from common infrastructue reusable workflows
  - run downstream-ci only when src and tests folders have changed
+ - New error messages for wrongs graphs.
 
-- New error messages for wrongs graphs.
+### Removed
+
+## [0.2.1] - Dependency update
+
+### Added
+
+- downstream-ci pipeline
+- readthedocs PR update check action
 
 ### Removed
 
