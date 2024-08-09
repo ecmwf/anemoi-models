@@ -15,7 +15,20 @@ Keep it human-readable, your future self will thank you!
 ### Changed
  - Update CI to inherit from common infrastructue reusable workflows
 
+- New error messages for wrongs graphs.
+
 ### Removed
+
+## 0.2.1
+
+### Added
+
+- downstream-ci pipeline
+- readthedocs PR update check action
+
+### Removed
+
+- anemoi-datasets dependency
 
 ## 0.2.0
 
