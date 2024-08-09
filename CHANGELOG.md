@@ -14,6 +14,7 @@ Keep it human-readable, your future self will thank you!
 
 ### Changed
  - Update CI to inherit from common infrastructue reusable workflows
+ - run downstream-ci only when src and tests folders have changed
 
 - New error messages for wrongs graphs.
 
