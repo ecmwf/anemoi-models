@@ -40,7 +40,7 @@ def atan2_converter(x):
 
 
 class BaseRemapperVariable(BasePreprocessor, ABC):
-    """Base class for Creating Auxiliary Variables."""
+    """Base class for Remapping Variables."""
 
     def __init__(
         self,

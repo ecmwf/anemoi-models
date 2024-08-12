@@ -12,6 +12,8 @@ Keep it human-readable, your future self will thank you!
 
 ### Added
 
+- Remapper: Preprocessor for remapping one variable to multiple ones. Includes changes to the data indices since the remapper changes the number of variables.
+
 ### Changed
 
  - Update CI to inherit from common infrastructue reusable workflows
