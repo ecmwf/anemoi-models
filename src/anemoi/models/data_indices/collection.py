@@ -39,14 +39,14 @@ class IndexCollection:
                 chain.from_iterable(d.items() for d in OmegaConf.to_container(config.data.remapped, resolve=True))
             )
         )
+        self.forcing_remapped = self.forcing.copy()
 
         assert set(self.diagnostic).isdisjoint(self.forcing), (
             f"Diagnostic and forcing variables overlap: {set(self.diagnostic).intersection(self.forcing)}. ",
             "Please drop them at a dataset-level to exclude them from the training data.",
         )
-        assert set(self.remapped).isdisjoint(self.forcing) and set(self.remapped).isdisjoint(self.diagnostic), (
-            "Remapped variable overlap with diagnostic and forcing variables. ",
-            "Not implemented.",
+        assert set(self.remapped).isdisjoint(self.diagnostic), (
+            "Remapped variable overlap with diagnostic variables. Not implemented.",
         )
         self.name_to_index = dict(sorted(name_to_index.items(), key=operator.itemgetter(1)))
         name_to_index_internal_data_input = {
@@ -67,19 +67,25 @@ class IndexCollection:
         for key in self.remapped:
             for mapped in self.remapped[key]:
                 name_to_index_internal_model_input[mapped] = len(name_to_index_internal_model_input)
-                name_to_index_internal_model_output[mapped] = len(name_to_index_internal_model_output)
                 name_to_index_internal_data_input[mapped] = len(name_to_index_internal_data_input)
+                if key not in self.forcing:
+                    name_to_index_internal_model_output[mapped] = len(name_to_index_internal_model_output)
+                else:
+                    self.forcing_remapped += [mapped]
+            if key in self.forcing:
+                # if key is in forcing we need to remove it from forcing_remapped after remapped variables have been added
+                self.forcing_remapped.remove(key)
 
         self.data = DataIndex(self.diagnostic, self.forcing, self.name_to_index)
         self.internal_data = DataIndex(
             self.diagnostic,
-            self.forcing,
+            self.forcing_remapped,
             name_to_index_internal_data_input,
         )  # internal after the remapping applied to data (training)
         self.model = ModelIndex(self.diagnostic, self.forcing, name_to_index_model_input, name_to_index_model_output)
         self.internal_model = ModelIndex(
             self.diagnostic,
-            self.forcing,
+            self.forcing_remapped,
             name_to_index_internal_model_input,
             name_to_index_internal_model_output,
         )  # internal after the remapping applied to model (inference)

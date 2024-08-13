@@ -142,8 +142,11 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
                 self.index_training_input.append(name_to_index_training_input[name])
                 self.index_training_output.append(name_to_index_training_output[name])
                 self.index_inference_input.append(name_to_index_inference_input[name])
-                self.index_inference_output.append(name_to_index_inference_output[name])
-
+                if name in name_to_index_inference_output:
+                    self.index_inference_output.append(name_to_index_inference_output[name])
+                else:
+                    # this is a forcing variable. It is not in the inference output.
+                    self.index_inference_output.append(None)
                 multiple_training_output, multiple_inference_output = [], []
                 multiple_training_input, multiple_inference_input = [], []
                 for name_dst in self.method_config[method][name]:
@@ -152,9 +155,13 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
                         f"Remap {name} to {name_dst} in config.data.remapped. "
                     )
                     multiple_training_input.append(name_to_index_training_remapped_input[name_dst])
-                    multiple_inference_input.append(name_to_index_inference_remapped_input[name_dst])
                     multiple_training_output.append(name_to_index_training_remapped_output[name_dst])
-                    multiple_inference_output.append(name_to_index_inference_remapped_output[name_dst])
+                    multiple_inference_input.append(name_to_index_inference_remapped_input[name_dst])
+                    if name_dst in name_to_index_inference_remapped_output:
+                        multiple_inference_output.append(name_to_index_inference_remapped_output[name_dst])
+                    else:
+                        # this is a forcing variable. It is not in the inference output.
+                        multiple_inference_output.append(None)
 
                 self.index_training_remapped_input.append(multiple_training_input)
                 self.index_inference_remapped_input.append(multiple_inference_input)
