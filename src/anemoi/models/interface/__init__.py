@@ -8,6 +8,7 @@
 #
 
 import uuid
+from typing import Optional
 
 import torch
 from anemoi.utils.config import DotDict
@@ -17,7 +18,6 @@ from torch_geometric.data import HeteroData
 from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
 from anemoi.models.preprocessing import Processors
 
-from typing import Optional
 
 class AnemoiModelInterface(torch.nn.Module):
     """An interface for Anemoi models.
@@ -46,7 +46,14 @@ class AnemoiModelInterface(torch.nn.Module):
     """
 
     def __init__(
-        self, *, config: DotDict, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict, statistics_tendencies: Optional[dict] = None
+        self,
+        *,
+        config: DotDict,
+        graph_data: HeteroData,
+        statistics: dict,
+        data_indices: dict,
+        metadata: dict,
+        statistics_tendencies: Optional[dict] = None,
     ) -> None:
         super().__init__()
         self.config = config
@@ -84,7 +91,6 @@ class AnemoiModelInterface(torch.nn.Module):
             self.pre_processors_tendency = Processors(processors_tendency)
             self.post_processors_tendency = Processors(processors_tendency, inverse=True)
 
-
         # Instantiate the model (Can be generalised to other models in the future, here we use AnemoiModelEncProcDec)
         self.model = AnemoiModelEncProcDec(
             config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
@@ -106,9 +112,9 @@ class AnemoiModelInterface(torch.nn.Module):
         torch.Tensor
             Predicted data.
         """
-        
+
         with torch.no_grad():
-            
+
             assert (
                 len(batch.shape) == 4
             ), f"The input tensor has an incorrect shape: expected a 4-dimensional tensor, got {batch.shape}!"
@@ -124,27 +130,29 @@ class AnemoiModelInterface(torch.nn.Module):
                 y_hat = self.post_processors_state(y_hat, in_place=False)
             else:
                 tendency_hat = self(x)
-                y_hat = self.add_tendency_to_state(batch[:, self.multi_step, ...] , tendency_hat )
+                y_hat = self.add_tendency_to_state(batch[:, self.multi_step, ...], tendency_hat)
 
         return y_hat
-    
+
     def add_tendency_to_state(self, state_inp, tendency):
         """Add the tendency to the state.
-        
+
         Parameters
         ----------
         state_inp : torch.Tensor
             The input state tensor with full input variables and unprocessed.
         tendency : torch.Tensor
             The tendency tensor output from model.
-        
+
         Returns
         -------
         torch.Tensor
             Predicted data.
         """
 
-        state_outp = self.post_processors_tendency(tendency, in_place=False, data_index=self.data_indices.data.output.full)
+        state_outp = self.post_processors_tendency(
+            tendency, in_place=False, data_index=self.data_indices.data.output.full
+        )
 
         state_outp[..., self.data_indices.model.output.diagnostic] = self.post_processors_state(
             tendency[..., self.data_indices.model.output.diagnostic],
@@ -152,6 +160,8 @@ class AnemoiModelInterface(torch.nn.Module):
             data_index=self.data_indices.data.output.diagnostic,
         )
 
-        state_outp[..., self.data_indices.model.output.prognostic] += state_inp[..., self.data_indices.model.input.prognostic]
+        state_outp[..., self.data_indices.model.output.prognostic] += state_inp[
+            ..., self.data_indices.model.input.prognostic
+        ]
 
         return state_outp

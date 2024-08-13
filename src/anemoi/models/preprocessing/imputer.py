@@ -104,7 +104,9 @@ class BaseImputer(BasePreprocessor, ABC):
         """Expand the subset of the mask to the correct shape."""
         return self.nan_locations[:, idx_src].expand(*x.shape[:-2], -1)
 
-    def transform(self, x: torch.Tensor, in_place: bool = True,  data_index: Optional[torch.Tensor] = None ) -> torch.Tensor:
+    def transform(
+        self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Impute missing values in the input tensor."""
         if not in_place:
             x = x.clone()
@@ -134,7 +136,9 @@ class BaseImputer(BasePreprocessor, ABC):
                 x[..., idx_dst][self._expand_subset_mask(x, idx_src)] = value
         return x
 
-    def inverse_transform(self, x: torch.Tensor, in_place: bool = True,  data_index: Optional[torch.Tensor] = None ) -> torch.Tensor:
+    def inverse_transform(
+        self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Impute missing values in the input tensor."""
         if not in_place:
             x = x.clone()
@@ -152,7 +156,7 @@ class BaseImputer(BasePreprocessor, ABC):
                 f"Input tensor ({x.shape[-1]}) does not match the training "
                 f"({self.num_training_output_vars}) or inference shape ({self.num_inference_output_vars})",
             )
-        
+
         # Replace values
         for idx_src, idx_dst in zip(self.index_training_input, index):
             if idx_dst is not None:

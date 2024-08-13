@@ -75,7 +75,9 @@ class BasePreprocessor(nn.Module):
             for variable in variables
         }
 
-    def forward(self, x, in_place: bool = True, inverse: bool = False, data_index: Optional[torch.Tensor] = None ) -> Tensor:
+    def forward(
+        self, x, in_place: bool = True, inverse: bool = False, data_index: Optional[torch.Tensor] = None
+    ) -> Tensor:
         """Process the input tensor.
 
         Parameters
