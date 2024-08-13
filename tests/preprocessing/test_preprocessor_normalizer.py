@@ -22,7 +22,9 @@ def input_normalizer():
         {
             "diagnostics": {"log": {"code": {"level": "DEBUG"}}},
             "data": {
-                "normalizer": {"default": "mean-std", "min-max": ["x"], "max": ["y"], "none": ["z"], "mean-std": ["q"]},
+                "normalizers": {
+                    "state": {"default": "mean-std", "min-max": ["x"], "max": ["y"], "none": ["z"], "mean-std": ["q"]}
+                },
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
             },
