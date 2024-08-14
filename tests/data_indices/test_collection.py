@@ -17,46 +17,49 @@ def data_indices():
     config = DictConfig(
         {
             "data": {
-                "forcing": ["x"],
+                "forcing": ["x", "e"],
                 "diagnostic": ["z", "q"],
                 "remapped": [
                     {
+                        "e": ["e_1", "e_2"],
                         "d": ["d_1", "d_2"],
                     }
                 ],
             },
         },
     )
-    name_to_index = {"x": 0, "y": 1, "z": 2, "q": 3, "other": 4, "d": 5}
+    name_to_index = {"x": 0, "y": 1, "z": 2, "q": 3, "e": 4, "d": 5, "other": 6}
     return IndexCollection(config=config, name_to_index=name_to_index)
 
 
 def test_dataindices_init(data_indices) -> None:
-    assert data_indices.data.input.includes == ["x"]
+    assert data_indices.data.input.includes == ["x", "e"]
     assert data_indices.data.input.excludes == ["z", "q"]
-    assert data_indices.internal_data.input.includes == ["x"]
+    assert data_indices.internal_data.input.includes == ["x", "e_1", "e_2"]
     assert data_indices.internal_data.input.excludes == ["z", "q"]
     assert data_indices.internal_data.output.includes == ["z", "q"]
-    assert data_indices.internal_data.output.excludes == ["x"]
+    assert data_indices.internal_data.output.excludes == ["x", "e_1", "e_2"]
     assert data_indices.data.output.includes == ["z", "q"]
-    assert data_indices.data.output.excludes == ["x"]
-    assert data_indices.model.input.includes == ["x"]
+    assert data_indices.data.output.excludes == ["x", "e"]
+    assert data_indices.model.input.includes == ["x", "e"]
     assert data_indices.model.input.excludes == []
-    assert data_indices.internal_model.input.includes == ["x"]
+    assert data_indices.internal_model.input.includes == ["x", "e_1", "e_2"]
     assert data_indices.internal_model.input.excludes == []
     assert data_indices.internal_model.output.includes == ["z", "q"]
     assert data_indices.internal_model.output.excludes == []
     assert data_indices.model.output.includes == ["z", "q"]
     assert data_indices.model.output.excludes == []
-    assert data_indices.data.input.name_to_index == {"x": 0, "y": 1, "z": 2, "q": 3, "other": 4, "d": 5}
+    assert data_indices.data.input.name_to_index == {"x": 0, "y": 1, "z": 2, "q": 3, "e": 4, "d": 5, "other": 6}
     assert data_indices.internal_data.input.name_to_index == {
         "x": 0,
         "y": 1,
         "z": 2,
         "q": 3,
         "other": 4,
-        "d_1": 5,
-        "d_2": 6,
+        "e_1": 5,
+        "e_2": 6,
+        "d_1": 7,
+        "d_2": 8,
     }
     assert data_indices.internal_data.output.name_to_index == {
         "x": 0,
@@ -64,14 +67,24 @@ def test_dataindices_init(data_indices) -> None:
         "z": 2,
         "q": 3,
         "other": 4,
+        "e_1": 5,
+        "e_2": 6,
+        "d_1": 7,
+        "d_2": 8,
+    }
+    assert data_indices.data.output.name_to_index == {"x": 0, "y": 1, "z": 2, "q": 3, "e": 4, "d": 5, "other": 6}
+    assert data_indices.model.input.name_to_index == {"x": 0, "y": 1, "e": 2, "d": 3, "other": 4}
+    assert data_indices.internal_model.input.name_to_index == {
+        "x": 0,
+        "y": 1,
+        "other": 2,
+        "e_1": 3,
+        "e_2": 4,
         "d_1": 5,
         "d_2": 6,
     }
-    assert data_indices.data.output.name_to_index == {"x": 0, "y": 1, "z": 2, "q": 3, "other": 4, "d": 5}
-    assert data_indices.model.input.name_to_index == {"x": 0, "y": 1, "other": 2, "d": 3}
-    assert data_indices.internal_model.input.name_to_index == {"x": 0, "y": 1, "other": 2, "d_1": 3, "d_2": 4}
     assert data_indices.internal_model.output.name_to_index == {"y": 0, "z": 1, "q": 2, "other": 3, "d_1": 4, "d_2": 5}
-    assert data_indices.model.output.name_to_index == {"y": 0, "z": 1, "q": 2, "other": 3, "d": 4}
+    assert data_indices.model.output.name_to_index == {"y": 0, "z": 1, "q": 2, "d": 3, "other": 4}
 
 
 def test_dataindices_max(data_indices) -> None:
@@ -90,16 +103,16 @@ def test_dataindices_max(data_indices) -> None:
 def test_dataindices_todict(data_indices) -> None:
     expected_output = {
         "input": {
-            "full": torch.Tensor([0, 1, 4, 5]).to(torch.int),
-            "forcing": torch.Tensor([0]).to(torch.int),
+            "full": torch.Tensor([0, 1, 4, 5, 6]).to(torch.int),
+            "forcing": torch.Tensor([0, 4]).to(torch.int),
             "diagnostic": torch.Tensor([2, 3]).to(torch.int),
-            "prognostic": torch.Tensor([1, 4, 5]).to(torch.int),
+            "prognostic": torch.Tensor([1, 5, 6]).to(torch.int),
         },
         "output": {
-            "full": torch.Tensor([1, 2, 3, 4, 5]).to(torch.int),
-            "forcing": torch.Tensor([0]).to(torch.int),
+            "full": torch.Tensor([1, 2, 3, 5, 6]).to(torch.int),
+            "forcing": torch.Tensor([0, 4]).to(torch.int),
             "diagnostic": torch.Tensor([2, 3]).to(torch.int),
-            "prognostic": torch.Tensor([1, 4, 5]).to(torch.int),
+            "prognostic": torch.Tensor([1, 5, 6]).to(torch.int),
         },
     }
 
@@ -112,16 +125,16 @@ def test_dataindices_todict(data_indices) -> None:
 def test_internaldataindices_todict(data_indices) -> None:
     expected_output = {
         "input": {
-            "full": torch.Tensor([0, 1, 4, 5, 6]).to(torch.int),
-            "forcing": torch.Tensor([0]).to(torch.int),
+            "full": torch.Tensor([0, 1, 4, 5, 6, 7, 8]).to(torch.int),
+            "forcing": torch.Tensor([0, 5, 6]).to(torch.int),
             "diagnostic": torch.Tensor([2, 3]).to(torch.int),
-            "prognostic": torch.Tensor([1, 4, 5, 6]).to(torch.int),
+            "prognostic": torch.Tensor([1, 4, 7, 8]).to(torch.int),
         },
         "output": {
-            "full": torch.Tensor([1, 2, 3, 4, 5, 6]).to(torch.int),
-            "forcing": torch.Tensor([0]).to(torch.int),
+            "full": torch.Tensor([1, 2, 3, 4, 7, 8]).to(torch.int),
+            "forcing": torch.Tensor([0, 5, 6]).to(torch.int),
             "diagnostic": torch.Tensor([2, 3]).to(torch.int),
-            "prognostic": torch.Tensor([1, 4, 5, 6]).to(torch.int),
+            "prognostic": torch.Tensor([1, 4, 7, 8]).to(torch.int),
         },
     }
 
@@ -134,10 +147,10 @@ def test_internaldataindices_todict(data_indices) -> None:
 def test_modelindices_todict(data_indices) -> None:
     expected_output = {
         "input": {
-            "full": torch.Tensor([0, 1, 2, 3]).to(torch.int),
-            "forcing": torch.Tensor([0]).to(torch.int),
+            "full": torch.Tensor([0, 1, 2, 3, 4]).to(torch.int),
+            "forcing": torch.Tensor([0, 2]).to(torch.int),
             "diagnostic": torch.Tensor([]).to(torch.int),
-            "prognostic": torch.Tensor([1, 2, 3]).to(torch.int),
+            "prognostic": torch.Tensor([1, 3, 4]).to(torch.int),
         },
         "output": {
             "full": torch.Tensor([0, 1, 2, 3, 4]).to(torch.int),
@@ -156,10 +169,10 @@ def test_modelindices_todict(data_indices) -> None:
 def test_internalmodelindices_todict(data_indices) -> None:
     expected_output = {
         "input": {
-            "full": torch.Tensor([0, 1, 2, 3, 4]).to(torch.int),
-            "forcing": torch.Tensor([0]).to(torch.int),
+            "full": torch.Tensor([0, 1, 2, 3, 4, 5, 6]).to(torch.int),
+            "forcing": torch.Tensor([0, 3, 4]).to(torch.int),
             "diagnostic": torch.Tensor([]).to(torch.int),
-            "prognostic": torch.Tensor([1, 2, 3, 4]).to(torch.int),
+            "prognostic": torch.Tensor([1, 2, 5, 6]).to(torch.int),
         },
         "output": {
             "full": torch.Tensor([0, 1, 2, 3, 4, 5]).to(torch.int),
