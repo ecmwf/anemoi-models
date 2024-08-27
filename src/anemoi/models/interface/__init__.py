@@ -13,6 +13,7 @@ from typing import Optional
 import torch
 from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
+from torch.distributed.distributed_c10d import ProcessGroup
 from torch_geometric.data import HeteroData
 
 from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
@@ -96,8 +97,15 @@ class AnemoiModelInterface(torch.nn.Module):
             config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
         )
 
-        # Use the forward method of the model directly
-        self.forward = self.model.forward
+    def forward(self, x: torch.Tensor, model_comm_group: Optional[ProcessGroup] = None) -> torch.Tensor:
+        if self.tendency_mode:
+            # Predict tendency
+            x_pred = self.model.forward(x, model_comm_group)
+        else:
+            # Predict state by adding residual connection (just for the prognostic variables)
+            x_pred = self.model.forward(x, model_comm_group)
+            x_pred[..., self.model._internal_output_idx] += x[:, -1, :, :, self.model._internal_input_idx]
+        return x_pred
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
         """Prediction step for the model.

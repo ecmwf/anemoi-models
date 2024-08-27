@@ -248,6 +248,4 @@ class AnemoiModelEncProcDec(nn.Module):
             .clone()
         )
 
-        # residual connection (just for the prognostic variables)
-        x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
         return x_out
