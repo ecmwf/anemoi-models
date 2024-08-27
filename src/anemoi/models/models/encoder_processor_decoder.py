@@ -286,7 +286,7 @@ class AnemoiModelEncProcDec(nn.Module):
                     ],
                 )
 
-            activated_var = strategy.apply(x_out, indices)
+            activated_var = strategy(x_out, indices)
             x_out = x_out.clone()  # needed to avoid inplace operation error during backpropagation
             x_out[..., self.data_indices.model.output.name_to_index[var]] = activated_var
 

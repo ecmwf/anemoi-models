@@ -2,9 +2,10 @@ from abc import ABC
 from abc import abstractmethod
 
 import torch
+from torch import nn
 
 
-class BaseBoundingStrategy(ABC):
+class BaseBoundingStrategy(nn.Module, ABC):
     """Abstract base class for bounding strategies.
 
     This class defines an interface for bounding strategies which are used to apply a specific
@@ -12,7 +13,7 @@ class BaseBoundingStrategy(ABC):
 
     Methods
     -------
-    apply(y_pred: torch.Tensor, indices: list) -> torch.Tensor
+    forward(y_pred: torch.Tensor, indices: list) -> torch.Tensor
         Applies the bounding strategy to the given variables (indices) of the input prediction (y_pred)
 
     Parameters
@@ -29,12 +30,12 @@ class BaseBoundingStrategy(ABC):
     """
 
     @abstractmethod
-    def apply(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
         pass
 
 
 class ReluBoundingStrategy(BaseBoundingStrategy):
-    def apply(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
         return torch.nn.functional.relu(y_pred[..., indices[0]])
 
 
@@ -54,7 +55,7 @@ class HardtanhBoundingStrategy(BaseBoundingStrategy):
         self.min_val = min_val
         self.max_val = max_val
 
-    def apply(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
         return torch.nn.functional.hardtanh(y_pred[..., indices[0]], min_val=self.min_val, max_val=self.max_val)
 
 
@@ -79,7 +80,7 @@ class FractionHardtanhBoundingStrategy(BaseBoundingStrategy):
         self.max_val = max_val
         self.total_var = total_var
 
-    def apply(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
         return (
             torch.nn.functional.hardtanh(y_pred[..., indices[0]], min_val=self.min_val, max_val=self.max_val)
             * y_pred[..., indices[1]]
@@ -116,7 +117,7 @@ class CustomFractionHardtanhBoundingStrategy(BaseBoundingStrategy):
         self.first_var = first_var
         self.second_var = second_var
 
-    def apply(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
         return torch.nn.functional.hardtanh(y_pred[..., indices[0]], min_val=self.min_val, max_val=self.max_val) * (
             y_pred[..., indices[1]] - y_pred[..., indices[2]]
         )
