@@ -105,7 +105,7 @@ class AnemoiModelEncProcDec(nn.Module):
             dst_grid_size=self._data_grid_size,
         )
 
-        self.boundings = nn.ModuleList([instantiate(cfg) for cfg in getattr(config.training, "bounding", [])])
+        self.boundings = nn.ModuleList([instantiate(cfg) for cfg in getattr(config.model, "bounding", [])])
 
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
         self.num_input_channels = len(data_indices.model.input)
