@@ -12,6 +12,7 @@ Keep it human-readable, your future self will thank you!
 
 ### Added
  - CI workflow to update the changelog on release
+ - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
 
 ### Changed
 
