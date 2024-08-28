@@ -18,8 +18,8 @@ class BaseBoundingStrategy(nn.Module, ABC):
 
     Methods
     -------
-    forward(x: torch.Tensor, indices: list) -> torch.Tensor
-        Applies the bounding strategy to the given variables (indices) of the input prediction (x)
+    forward(x: torch.Tensor) -> torch.Tensor
+        Applies the bounding strategy to the given variables of the input prediction (x)
 
     Parameters
     ----------
@@ -55,7 +55,8 @@ class BaseBoundingStrategy(nn.Module, ABC):
 
 class ReluBoundingStrategy(BaseBoundingStrategy):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.nn.functional.relu(x[..., self.data_index])
+        x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index])
+        return x
 
 
 class HardtanhBoundingStrategy(BaseBoundingStrategy):
@@ -75,69 +76,29 @@ class HardtanhBoundingStrategy(BaseBoundingStrategy):
         self.max_val = max_val
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.nn.functional.hardtanh(x[..., self.data_index], min_val=self.min_val, max_val=self.max_val)
+        x[..., self.data_index] = torch.nn.functional.hardtanh(
+            x[..., self.data_index], min_val=self.min_val, max_val=self.max_val
+        )
+        return x
 
 
-class FractionHardtanhBoundingStrategy(BaseBoundingStrategy):
-    """Initializes the FractionHardtanhBoundingStrategy with specified parameters.
+class FractionBoundingStrategy(HardtanhBoundingStrategy):
+    """Initializes the FractionBoundingStrategy with specified parameters.
 
     Parameters
     ----------
-    min_val : float
-        The minimum value for the HardTanh activation function.
-    max_val : float
-        The maximum value for the HardTanh activation function.
     total_var : str
         A string representing a variable from which a secondary variable is derived. For
         example, in the case of convective precipitation (Cp), total_var = Tp (total precipitation).
     """
 
     def __init__(self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float, total_var: str):
-        super().__init__(config=config, name_to_index=name_to_index)
-        self.min_val = min_val
-        self.max_val = max_val
+        super().__init__(config=config, name_to_index=name_to_index, min_val=min_val, max_val=max_val)
         self.total_variable = self._create_index(includes=[total_var])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return (
-            torch.nn.functional.hardtanh(x[..., self.data_index], min_val=self.min_val, max_val=self.max_val)
-            * x[..., self.total_variable]
-        )
-
-
-class CustomFractionHardtanhBoundingStrategy(BaseBoundingStrategy):
-    """Initializes the CustomFractionHardtanhBoundingStrategy.
-
-    Description
-    ----------
-    Initializes the CustomFractionHardtanhBoundingStrategy with specified
-    parameters. This is a special case of FractionHardtanhBoundingStrategy where the
-    total variable is constructed from a combination of two other variables. For
-    example, large-scale precipitation (lsp) can be derived from total precipitation (tp)
-    and convective precipitation (cp) as follows: lsp = tp - cp.
-
-    Parameters
-    ----------
-    min_val : float
-        The minimum value for the HardTanh activation function.
-    max_val : float
-        The maximum value for the HardTanh activation function.
-    first_var : str
-        First variable from which the total variable is derived.
-    second_var : str
-        Second variable from which the total variable is derived.
-    """
-
-    def __init__(
-        self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float, first_var: str, second_var: str
-    ):
-        super().__init__(config=config, name_to_index=name_to_index)
-        self.min_val = min_val
-        self.max_val = max_val
-        self.first_var = self._create_index(includes=[first_var])
-        self.second_var = self._create_index(includes=[second_var])
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.nn.functional.hardtanh(x[..., self.data_index], min_val=self.min_val, max_val=self.max_val) * (
-            x[..., self.first_var] - x[..., self.second_var]
-        )
+        # Apply the HardTanh bounding strategy to the data_index variables
+        x = super().forward(x)
+        # Calculate the fraction of the total variable
+        x[..., self.data_index] *= x[..., self.total_variable]
+        return x
