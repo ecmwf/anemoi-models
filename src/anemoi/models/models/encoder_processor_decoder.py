@@ -67,21 +67,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self._register_latlon("data", self._graph_name_data)
         self._register_latlon("hidden", self._graph_name_hidden)
 
-        # Variables affected by the activation function
-        def create_bounding_strategy(config: DotDict) -> BaseBoundingStrategy:
-            return instantiate(config)
-
         self.data_indices = data_indices
-        # Use getattr to safely access config.training.bounding_strategies or set it to None if it does not exist
-        bounding_strategies_config = getattr(config.training, "bounding_strategies", None)
-
-        # Check if bounding_strategies_config is not None and not empty
-        if bounding_strategies_config:
-            self.bounding_strategies = {
-                var: create_bounding_strategy(cfg) for var, cfg in bounding_strategies_config.items()
-            }
-        else:
-            self.bounding_strategies = {}
 
         self.num_channels = config.model.num_channels
 
@@ -118,6 +104,8 @@ class AnemoiModelEncProcDec(nn.Module):
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._data_grid_size,
         )
+
+        self.boundings = nn.ModuleList([instantiate(cfg) for cfg in getattr(config.training, "bounding", [])])
 
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
         self.num_input_channels = len(data_indices.model.input)
@@ -267,26 +255,8 @@ class AnemoiModelEncProcDec(nn.Module):
         # residual connection (just for the prognostic variables)
         x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
 
-        for (
-            var,
-            strategy,
-        ) in self.bounding_strategies.items():  # bounding performed in the order specified in the config file
-            indices = []
-            indices.append(self.data_indices.model.output.name_to_index[var])
-
-            # Special case when fraction activation is used var = frac * var_total
-            if strategy.__class__.__name__ == "FractionHardtanhBoundingStrategy":
-                indices.append(self.data_indices.model.output.name_to_index[strategy.total_var])
-            elif strategy.__class__.__name__ == "CustomFractionHardtanhBoundingStrategy":
-                indices.extend(
-                    [
-                        self.data_indices.model.output.name_to_index[strategy.first_var],
-                        self.data_indices.model.output.name_to_index[strategy.second_var],
-                    ],
-                )
-
-            activated_var = strategy(x_out, indices)
-            x_out = x_out.clone()  # needed to avoid inplace operation error during backpropagation
-            x_out[..., self.data_indices.model.output.name_to_index[var]] = activated_var
+        for bounding in self.boundings:
+            # bounding performed in the order specified in the config file
+            x_out = bounding(x_out)
 
         return x_out
