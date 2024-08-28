@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from abc import ABC
 from abc import abstractmethod
 
 import torch
+from anemoi.utils import DotDict
 from torch import nn
+
+from anemoi.models.data_indices.tensor import InputTensorIndex
 
 
 class BaseBoundingStrategy(nn.Module, ABC):
@@ -13,15 +18,13 @@ class BaseBoundingStrategy(nn.Module, ABC):
 
     Methods
     -------
-    forward(y_pred: torch.Tensor, indices: list) -> torch.Tensor
-        Applies the bounding strategy to the given variables (indices) of the input prediction (y_pred)
+    forward(x: torch.Tensor, indices: list) -> torch.Tensor
+        Applies the bounding strategy to the given variables (indices) of the input prediction (x)
 
     Parameters
     ----------
-    y_pred : torch.Tensor
+    x : torch.Tensor
         The tensor containing the predictions that will be bounded.
-    indices : list
-        A list of indices specifying which variables in `y_pred` should be bounded.
 
     Returns
     -------
@@ -29,14 +32,30 @@ class BaseBoundingStrategy(nn.Module, ABC):
         A tensor with the bounding strategy applied.
     """
 
+    def __init__(
+        self,
+        *,
+        config: DotDict,
+        name_to_index: dict,
+    ):
+        super().__init__()
+
+        self.config = config
+        self.name_to_index = name_to_index
+        self.variables = self.config["variables"]
+        self.data_index = self._create_index(includes=self.variables)
+
+    def _create_index(self, variables: list[str]) -> InputTensorIndex:
+        return InputTensorIndex(includes=variables, excludes=None, name_to_index=self.name_to_index)
+
     @abstractmethod
-    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         pass
 
 
 class ReluBoundingStrategy(BaseBoundingStrategy):
-    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
-        return torch.nn.functional.relu(y_pred[..., indices[0]])
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.nn.functional.relu(x[..., self.data_index])
 
 
 class HardtanhBoundingStrategy(BaseBoundingStrategy):
@@ -50,13 +69,13 @@ class HardtanhBoundingStrategy(BaseBoundingStrategy):
         The maximum value for the HardTanh activation.
     """
 
-    def __init__(self, min_val: float, max_val: float):
-        super().__init__()
+    def __init__(self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float):
+        super().__init__(config=config, name_to_index=name_to_index)
         self.min_val = min_val
         self.max_val = max_val
 
-    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
-        return torch.nn.functional.hardtanh(y_pred[..., indices[0]], min_val=self.min_val, max_val=self.max_val)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.nn.functional.hardtanh(x[..., self.data_index], min_val=self.min_val, max_val=self.max_val)
 
 
 class FractionHardtanhBoundingStrategy(BaseBoundingStrategy):
@@ -73,17 +92,16 @@ class FractionHardtanhBoundingStrategy(BaseBoundingStrategy):
         example, in the case of convective precipitation (Cp), total_var = Tp (total precipitation).
     """
 
-    def __init__(self, min_val: float, max_val: float, total_var: str):
-
-        super().__init__()
+    def __init__(self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float, total_var: str):
+        super().__init__(config=config, name_to_index=name_to_index)
         self.min_val = min_val
         self.max_val = max_val
-        self.total_var = total_var
+        self.total_variable = self._create_index(includes=[total_var])
 
-    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return (
-            torch.nn.functional.hardtanh(y_pred[..., indices[0]], min_val=self.min_val, max_val=self.max_val)
-            * y_pred[..., indices[1]]
+            torch.nn.functional.hardtanh(x[..., self.data_index], min_val=self.min_val, max_val=self.max_val)
+            * x[..., self.total_variable]
         )
 
 
@@ -110,14 +128,16 @@ class CustomFractionHardtanhBoundingStrategy(BaseBoundingStrategy):
         Second variable from which the total variable is derived.
     """
 
-    def __init__(self, min_val: float, max_val: float, first_var: str, second_var: str):
-        super().__init__()
+    def __init__(
+        self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float, first_var: str, second_var: str
+    ):
+        super().__init__(config=config, name_to_index=name_to_index)
         self.min_val = min_val
         self.max_val = max_val
-        self.first_var = first_var
-        self.second_var = second_var
+        self.first_var = self._create_index(includes=[first_var])
+        self.second_var = self._create_index(includes=[second_var])
 
-    def forward(self, y_pred: torch.Tensor, indices: list) -> torch.Tensor:
-        return torch.nn.functional.hardtanh(y_pred[..., indices[0]], min_val=self.min_val, max_val=self.max_val) * (
-            y_pred[..., indices[1]] - y_pred[..., indices[2]]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.nn.functional.hardtanh(x[..., self.data_index], min_val=self.min_val, max_val=self.max_val) * (
+            x[..., self.first_var] - x[..., self.second_var]
         )
