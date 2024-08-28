@@ -22,7 +22,6 @@ from torch_geometric.data import HeteroData
 
 from anemoi.models.distributed.shapes import get_shape_shards
 from anemoi.models.layers.graph import TrainableTensor
-from anemoi.models.preprocessing.bounding import BaseBoundingStrategy
 
 LOGGER = logging.getLogger(__name__)
 
