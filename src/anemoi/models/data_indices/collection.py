@@ -64,13 +64,18 @@ class IndexCollection:
         name_to_index_internal_model_output = {
             name: i for i, name in enumerate(key for key in name_to_index_model_output if key not in self.remapped)
         }
+        # for all variables to be remapped we add the resulting remapped variables to the end of the tensors
+        # keep track of that in the index collections
         for key in self.remapped:
             for mapped in self.remapped[key]:
+                # add index of remapped variables to dictionary
                 name_to_index_internal_model_input[mapped] = len(name_to_index_internal_model_input)
                 name_to_index_internal_data_input[mapped] = len(name_to_index_internal_data_input)
                 if key not in self.forcing:
+                    # do not include forcing variables in the remapped model output
                     name_to_index_internal_model_output[mapped] = len(name_to_index_internal_model_output)
                 else:
+                    # add remapped forcing variables to forcing_remapped
                     self.forcing_remapped += [mapped]
             if key in self.forcing:
                 # if key is in forcing we need to remove it from forcing_remapped after remapped variables have been added

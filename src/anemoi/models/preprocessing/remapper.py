@@ -70,9 +70,7 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
             f"Error creating conversion indices {len(self.index_training_output)}, "
             f"{len(self.index_inference_output)}, {len(self.remappers)}"
         )
-        assert (
-            len(list(set(self.index_training_input + self.indices_keep_training_input))) == self.num_training_input_vars
-        ), (
+        assert len(set(self.index_training_input + self.indices_keep_training_input)) == self.num_training_input_vars, (
             "Error creating conversion indices: variables remapped in config.data.remapped "
             "that have no remapping function defined. Preprocessed tensors contains empty columns."
         )
