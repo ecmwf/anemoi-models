@@ -49,18 +49,18 @@ class InputNormalizer(BasePreprocessor):
         mean = statistics["mean"]
         stdev = statistics["stdev"]
 
-        # Reuse statistic of one variable for another variable
+        # Optionally reuse statistic of one variable for another variable
         statistics_remap = {}
         for remap, source in self.remap.items():
-            i = name_to_index_training_input[source]
-            j = name_to_index_training_input[remap]
-            statistics_remap[j] = (minimum[i], maximum[i], mean[i], stdev[i])
+            idx_src = name_to_index_training_input[source]
+            idx_remap = name_to_index_training_input[remap]
+            statistics_remap[idx_remap] = (minimum[idx_src], maximum[idx_src], mean[idx_src], stdev[idx_src])
 
-        for i, (min_, max_, mean_, stdev_) in statistics_remap.items():
-            minimum[i] = min_
-            maximum[i] = max_
-            mean[i] = mean_
-            stdev[i] = stdev_
+        for idx, (min_, max_, mean_, stdev_) in statistics_remap.items():
+            minimum[idx] = min_
+            maximum[idx] = max_
+            mean[idx] = mean_
+            stdev[idx] = stdev_
 
         self._validate_normalization_inputs(name_to_index_training_input, minimum, maximum, mean, stdev)
 
