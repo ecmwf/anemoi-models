@@ -1,6 +1,7 @@
 import pytest
 import torch
 from anemoi.utils.config import DotDict
+from hydra.utils import instantiate
 
 from anemoi.models.layers.bounding import FractionBounding
 from anemoi.models.layers.bounding import HardtanhBounding
@@ -64,3 +65,31 @@ def test_multi_chained_bounding(config, name_to_index, input_tensor):
     # Data with Relu applied first and then Hardtanh
     expected_output = torch.tensor([[minimum, maximum, 3.0], [maximum, minimum, 6.0], [0.5, 0.5, 0.5]])
     assert torch.equal(output, expected_output)
+
+
+def test_hydra_instantiate_bounding(config, name_to_index, input_tensor):
+    layer_definitions = [
+        {
+            "_target_": "anemoi.models.layers.bounding.ReluBounding",
+            "variables": config.variables,
+            "name_to_index": name_to_index,
+        },
+        {
+            "_target_": "anemoi.models.layers.bounding.HardtanhBounding",
+            "variables": config.variables,
+            "name_to_index": name_to_index,
+            "min_val": 0.0,
+            "max_val": 1.0,
+        },
+        {
+            "_target_": "anemoi.models.layers.bounding.FractionBounding",
+            "variables": config.variables,
+            "name_to_index": name_to_index,
+            "min_val": 0.0,
+            "max_val": 1.0,
+            "total_var": config.total_var,
+        },
+    ]
+    for layer_definition in layer_definitions:
+        bounding = instantiate(layer_definition)
+        bounding(input_tensor.clone())
