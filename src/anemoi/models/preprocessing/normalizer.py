@@ -40,18 +40,6 @@ class InputNormalizer(BasePreprocessor):
         data_indices : dict
             Data indices for input and output variables
         """
-        # The only rapid way I found to avoid the _validate_normalization_inputs assert...
-        fraction_normalisation_list = config.get("fraction_normalisation")
-        total_indexes = []
-        fraction_indexes = []
-        if fraction_normalisation_list is not None:
-            fraction_normalisation_list = config["fraction_normalisation"]
-            for fraction_group in fraction_normalisation_list:
-                total_indexes.append(data_indices.data.input.name_to_index[fraction_group[0]])
-                fraction_indexes.append(data_indices.data.input.name_to_index[fraction_group[1]])
-
-        if "fraction_normalisation" in config:
-            del config["fraction_normalisation"]
         super().__init__(config, statistics, data_indices)
 
         name_to_index_training_input = self.data_indices.data.input.name_to_index
@@ -61,8 +49,18 @@ class InputNormalizer(BasePreprocessor):
         mean = statistics["mean"]
         stdev = statistics["stdev"]
 
-        for i in range(len(total_indexes)):
-            stdev[fraction_indexes[i]] = stdev[total_indexes[i]]
+        # Reuse statistic of one variable for another variable
+        statistics_remap = {}
+        for remap, source in self.remap.items():
+            i = name_to_index_training_input[source]
+            j = name_to_index_training_input[remap]
+            statistics_remap[j] = (minimum[i], maximum[i], mean[i], stdev[i])
+
+        for i, (min_, max_, mean_, stdev_) in statistics_remap.items():
+            minimum[i] = min_
+            maximum[i] = max_
+            mean[i] = mean_
+            stdev[i] = stdev_
 
         self._validate_normalization_inputs(name_to_index_training_input, minimum, maximum, mean, stdev)
 
@@ -71,18 +69,21 @@ class InputNormalizer(BasePreprocessor):
 
         for name, i in name_to_index_training_input.items():
             method = self.methods.get(name, self.default)
+
             if method == "mean-std":
                 LOGGER.debug(f"Normalizing: {name} is mean-std-normalised.")
                 if stdev[i] < (mean[i] * 1e-6):
                     warnings.warn(f"Normalizing: the field seems to have only one value {mean[i]}")
                 _norm_mul[i] = 1 / stdev[i]
                 _norm_add[i] = -mean[i] / stdev[i]
+
             elif method == "std":
                 LOGGER.debug(f"Normalizing: {name} is std-normalised.")
                 if stdev[i] < (mean[i] * 1e-6):
                     warnings.warn(f"Normalizing: the field seems to have only one value {mean[i]}")
                 _norm_mul[i] = 1 / stdev[i]
-                _norm_add[i] = 0.0
+                _norm_add[i] = 0
+
             elif method == "min-max":
                 LOGGER.debug(f"Normalizing: {name} is min-max-normalised to [0, 1].")
                 x = maximum[i] - minimum[i]
@@ -112,11 +113,14 @@ class InputNormalizer(BasePreprocessor):
             f"Error parsing methods in InputNormalizer methods ({len(self.methods)}) "
             f"and entries in config ({sum(len(v) for v in self.method_config)}) do not match."
         )
+
+        # Check that all sizes align
         n = minimum.size
         assert maximum.size == n, (maximum.size, n)
         assert mean.size == n, (mean.size, n)
         assert stdev.size == n, (stdev.size, n)
 
+        # Check for typos in method config
         assert isinstance(self.methods, dict)
         for name, method in self.methods.items():
             assert name in name_to_index_training_input, f"{name} is not a valid variable name"
