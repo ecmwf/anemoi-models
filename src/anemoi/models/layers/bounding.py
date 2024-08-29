@@ -4,22 +4,16 @@ from abc import ABC
 from abc import abstractmethod
 
 import torch
-from anemoi.utils import DotDict
 from torch import nn
 
 from anemoi.models.data_indices.tensor import InputTensorIndex
 
 
-class BaseBoundingStrategy(nn.Module, ABC):
+class BaseBounding(nn.Module, ABC):
     """Abstract base class for bounding strategies.
 
     This class defines an interface for bounding strategies which are used to apply a specific
     restriction to the predictions of a model.
-
-    Methods
-    -------
-    forward(x: torch.Tensor) -> torch.Tensor
-        Applies the bounding strategy to the given variables of the input prediction (x)
 
     Parameters
     ----------
@@ -29,37 +23,36 @@ class BaseBoundingStrategy(nn.Module, ABC):
     Returns
     -------
     torch.Tensor
-        A tensor with the bounding strategy applied.
+        A tensor with the bounding applied.
     """
 
     def __init__(
         self,
         *,
-        config: DotDict,
+        variables: list[str],
         name_to_index: dict,
     ):
         super().__init__()
 
-        self.config = config
         self.name_to_index = name_to_index
-        self.variables = self.config["variables"]
-        self.data_index = self._create_index(includes=self.variables)
+        self.variables = variables
+        self.data_index = self._create_index(variables=self.variables)
 
     def _create_index(self, variables: list[str]) -> InputTensorIndex:
-        return InputTensorIndex(includes=variables, excludes=None, name_to_index=self.name_to_index)
+        return InputTensorIndex(includes=variables, excludes=[], name_to_index=self.name_to_index)._only
 
     @abstractmethod
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         pass
 
 
-class ReluBoundingStrategy(BaseBoundingStrategy):
+class ReluBounding(BaseBounding):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index])
         return x
 
 
-class HardtanhBoundingStrategy(BaseBoundingStrategy):
+class HardtanhBounding(BaseBounding):
     """Initializes the bounding with specified minimum and maximum values for bounding.
 
     Parameters
@@ -70,8 +63,8 @@ class HardtanhBoundingStrategy(BaseBoundingStrategy):
         The maximum value for the HardTanh activation.
     """
 
-    def __init__(self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float):
-        super().__init__(config=config, name_to_index=name_to_index)
+    def __init__(self, *, variables: list[str], name_to_index: dict, min_val: float, max_val: float):
+        super().__init__(variables=variables, name_to_index=name_to_index)
         self.min_val = min_val
         self.max_val = max_val
 
@@ -82,8 +75,8 @@ class HardtanhBoundingStrategy(BaseBoundingStrategy):
         return x
 
 
-class FractionBoundingStrategy(HardtanhBoundingStrategy):
-    """Initializes the FractionBoundingStrategy with specified parameters.
+class FractionBounding(HardtanhBounding):
+    """Initializes the FractionBounding with specified parameters.
 
     Parameters
     ----------
@@ -92,12 +85,12 @@ class FractionBoundingStrategy(HardtanhBoundingStrategy):
         example, in the case of convective precipitation (Cp), total_var = Tp (total precipitation).
     """
 
-    def __init__(self, *, config: DotDict, name_to_index: dict, min_val: float, max_val: float, total_var: str):
-        super().__init__(config=config, name_to_index=name_to_index, min_val=min_val, max_val=max_val)
-        self.total_variable = self._create_index(includes=[total_var])
+    def __init__(self, *, variables: list[str], name_to_index: dict, min_val: float, max_val: float, total_var: str):
+        super().__init__(variables=variables, name_to_index=name_to_index, min_val=min_val, max_val=max_val)
+        self.total_variable = self._create_index(variables=[total_var])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Apply the HardTanh bounding strategy to the data_index variables
+        # Apply the HardTanh bounding  to the data_index variables
         x = super().forward(x)
         # Calculate the fraction of the total variable
         x[..., self.data_index] *= x[..., self.total_variable]
