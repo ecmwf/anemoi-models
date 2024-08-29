@@ -55,6 +55,7 @@ class InputNormalizer(BasePreprocessor):
             idx_src, idx_remap = name_to_index_training_input[source], name_to_index_training_input[remap]
             statistics_remap[idx_remap] = (minimum[idx_src], maximum[idx_src], mean[idx_src], stdev[idx_src])
 
+        # Two-step to avoid overwriting the original statistics in the loop (this reduces dependence on order)
         for idx, new_stats in statistics_remap.items():
             minimum[idx], maximum[idx], mean[idx], stdev[idx] = new_stats
 
