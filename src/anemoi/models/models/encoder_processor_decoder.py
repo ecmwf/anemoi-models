@@ -70,7 +70,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self.num_channels = config.model.num_channels
 
         self.layer_kernels = config.model.layer_kernels
-        LOGGER.debug(f"{config.model.layer_kernels=}")
+        LOGGER.info(f"{config.model.layer_kernels=}")
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
