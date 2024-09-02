@@ -55,7 +55,7 @@ class BaseBlock(nn.Module, ABC):
 class TransformerProcessorBlock(BaseBlock):
     """Transformer block with MultiHeadSelfAttention and MLPs."""
 
-    def __init__(self, num_channels, hidden_dim, num_heads, activation, window_size: int):
+    def __init__(self, num_channels, layer_kernels, hidden_dim, num_heads, activation, window_size: int):
         super().__init__()
 
         try:
@@ -64,7 +64,10 @@ class TransformerProcessorBlock(BaseBlock):
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
-        self.layer_norm1 = nn.LayerNorm(num_channels)
+        LayerNorm=layer_kernels['LayerNorm']
+        Linear=layer_kernels['Linear']
+
+        self.layer_norm1 = LayerNorm(num_channels)
 
         self.attention = MultiHeadSelfAttention(
             num_heads=num_heads,
@@ -73,14 +76,15 @@ class TransformerProcessorBlock(BaseBlock):
             bias=False,
             is_causal=False,
             dropout=0.0,
+            layer_kernels=layer_kernels,
         )
 
         self.mlp = nn.Sequential(
-            nn.Linear(num_channels, hidden_dim),
+            Linear(num_channels, hidden_dim),
             act_func(),
-            nn.Linear(hidden_dim, num_channels),
+            Linear(hidden_dim, num_channels),
         )
-        self.layer_norm2 = nn.LayerNorm(num_channels)
+        self.layer_norm2 = LayerNorm(num_channels)
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -281,6 +285,7 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
         hidden_dim: int,
         out_channels: int,
         edge_dim: int,
+        layer_kernels: any,
         num_heads: int = 16,
         bias: bool = True,
         activation: str = "GELU",
@@ -298,6 +303,8 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
             Number of output channels.
         edge_dim : int,
             Edge dimension
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         num_heads : int,
             Number of heads
         bias : bool, by default True,
@@ -316,15 +323,18 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         self.num_chunks = num_chunks
 
-        self.lin_key = nn.Linear(in_channels, num_heads * self.out_channels_conv)
-        self.lin_query = nn.Linear(in_channels, num_heads * self.out_channels_conv)
-        self.lin_value = nn.Linear(in_channels, num_heads * self.out_channels_conv)
-        self.lin_self = nn.Linear(in_channels, num_heads * self.out_channels_conv, bias=bias)
-        self.lin_edge = nn.Linear(edge_dim, num_heads * self.out_channels_conv)  # , bias=False)
+        Linear=layer_kernels['Linear']
+        LayerNorm=layer_kernels['LayerNorm']
+
+        self.lin_key = Linear(in_channels, num_heads * self.out_channels_conv)
+        self.lin_query = Linear(in_channels, num_heads * self.out_channels_conv)
+        self.lin_value = Linear(in_channels, num_heads * self.out_channels_conv)
+        self.lin_self = Linear(in_channels, num_heads * self.out_channels_conv, bias=bias)
+        self.lin_edge = Linear(edge_dim, num_heads * self.out_channels_conv)  # , bias=False)
 
         self.conv = GraphTransformerConv(out_channels=self.out_channels_conv)
 
-        self.projection = nn.Linear(out_channels, out_channels)
+        self.projection = Linear(out_channels, out_channels)
 
         try:
             act_func = getattr(nn, activation)
@@ -333,20 +343,20 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
             raise RuntimeError from ae
 
         self.node_dst_mlp = nn.Sequential(
-            nn.LayerNorm(out_channels),
-            nn.Linear(out_channels, hidden_dim),
+            LayerNorm(out_channels),
+            Linear(out_channels, hidden_dim),
             act_func(),
-            nn.Linear(hidden_dim, out_channels),
+            Linear(hidden_dim, out_channels),
         )
 
-        self.layer_norm1 = nn.LayerNorm(in_channels)
+        self.layer_norm1 = LayerNorm(in_channels)
 
         if self.update_src_nodes:
             self.node_src_mlp = nn.Sequential(
-                nn.LayerNorm(out_channels),
-                nn.Linear(out_channels, hidden_dim),
+                LayerNorm(out_channels),
+                Linear(out_channels, hidden_dim),
                 act_func(),
-                nn.Linear(hidden_dim, out_channels),
+                Linear(hidden_dim, out_channels),
             )
 
     def shard_qkve_heads(
@@ -421,6 +431,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
         hidden_dim: int,
         out_channels: int,
         edge_dim: int,
+        layer_kernels: any,
         num_heads: int = 16,
         bias: bool = True,
         activation: str = "GELU",
@@ -438,6 +449,8 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             Number of output channels.
         edge_dim : int,
             Edge dimension
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         num_heads : int,
             Number of heads
         bias : bool, by default True,
@@ -457,10 +470,12 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             activation=activation,
             num_chunks=num_chunks,
             update_src_nodes=update_src_nodes,
+            layer_kernels=layer_kernels,
             **kwargs,
         )
+        LayerNorm=layer_kernels['LayerNorm']
 
-        self.layer_norm2 = nn.LayerNorm(in_channels)
+        self.layer_norm2 = LayerNorm(in_channels)
 
     def forward(
         self,
@@ -513,6 +528,7 @@ class GraphTransformerProcessorBlock(GraphTransformerBaseBlock):
         hidden_dim: int,
         out_channels: int,
         edge_dim: int,
+        layer_kernels: any,
         num_heads: int = 16,
         bias: bool = True,
         activation: str = "GELU",
@@ -530,6 +546,8 @@ class GraphTransformerProcessorBlock(GraphTransformerBaseBlock):
             Number of output channels.
         edge_dim : int,
             Edge dimension
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         num_heads : int,
             Number of heads
         bias : bool, by default True,
@@ -545,6 +563,7 @@ class GraphTransformerProcessorBlock(GraphTransformerBaseBlock):
             hidden_dim=hidden_dim,
             out_channels=out_channels,
             edge_dim=edge_dim,
+            layer_kernels=layer_kernels,
             num_heads=num_heads,
             bias=bias,
             activation=activation,

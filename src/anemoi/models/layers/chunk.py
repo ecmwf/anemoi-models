@@ -70,6 +70,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         num_channels: int,
         num_layers: int,
         window_size: int,
+        layer_kernels: any,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -82,6 +83,8 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Number of channels
         num_layers : int
             Number of layers
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
@@ -94,6 +97,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         self.build_blocks(
             TransformerProcessorBlock,
             num_channels=num_channels,
+            layer_kernels=layer_kernels,
             hidden_dim=(mlp_hidden_ratio * num_channels),
             num_heads=num_heads,
             activation=activation,

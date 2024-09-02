@@ -31,6 +31,7 @@ class MLP(nn.Module):
         final_activation: bool = False,
         layer_norm: bool = True,
         checkpoints: bool = False,
+        layer_kernels: any = None,
     ) -> nn.Module:
         """Generate a multi-layer perceptron.
 
@@ -52,6 +53,8 @@ class MLP(nn.Module):
             Whether to apply layer norm after activation, by default True
         checkpoints : bool, optional
             Whether to provide checkpoints, by default False
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
 
         Returns
         -------
@@ -64,23 +67,28 @@ class MLP(nn.Module):
             If activation function is not supported
         """
         super().__init__()
+
+        Linear=layer_kernels['Linear']
+        LayerNorm=layer_kernels['LayerNorm']
+
         try:
             act_func = getattr(nn, activation)
         except AttributeError as ae:
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
-        mlp1 = nn.Sequential(nn.Linear(in_features, hidden_dim), act_func())
+        mlp1 = nn.Sequential(Linear(in_features, hidden_dim), act_func())
         for _ in range(n_extra_layers + 1):
-            mlp1.append(nn.Linear(hidden_dim, hidden_dim))
+            mlp1.append(Linear(hidden_dim, hidden_dim))
             mlp1.append(act_func())
-        mlp1.append(nn.Linear(hidden_dim, out_features))
+        mlp1.append(Linear(hidden_dim, out_features))
 
         if final_activation:
             mlp1.append(act_func())
 
         if layer_norm:
-            mlp1.append(AutocastLayerNorm(out_features))
+            #mlp1.append(AutocastLayerNorm(out_features))
+            mlp1.append(LayerNorm(out_features).as_type(out_features))
 
         self.model = CheckpointWrapper(mlp1) if checkpoints else mlp1
 

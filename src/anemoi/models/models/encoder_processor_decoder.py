@@ -69,6 +69,9 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self.num_channels = config.model.num_channels
 
+        self.layer_kernels = config.model.layer_kernels
+        LOGGER.debug(f"{config.model.layer_kernels=}")
+
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
         # Encoder data -> hidden
@@ -80,6 +83,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_name_hidden)],
             src_grid_size=self._data_grid_size,
             dst_grid_size=self._hidden_grid_size,
+            layer_kernels=self.layer_kernels,
         )
 
         # Processor hidden -> hidden
@@ -89,6 +93,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._hidden_grid_size,
+            layer_kernels=self.layer_kernels,
         )
 
         # Decoder hidden -> data
@@ -101,6 +106,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_data)],
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._data_grid_size,
+            layer_kernels=self.layer_kernels,
         )
 
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
