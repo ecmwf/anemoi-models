@@ -73,26 +73,14 @@ class AnemoiModelInterface(torch.nn.Module):
         self.pre_processors = Processors(processors)
         self.post_processors = Processors(processors, inverse=True)
         
-      
-
+    
         # Instantiate the model (Can be generalised to other models in the future, here we use AnemoiModelEncProcDec)
-        # self.model = AnemoiModelEncProcDec(
-        #     config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
-        # )
-        
-        if self.config.model.type == 'AnemoiModelEncProcDec':
-            self.model = AnemoiModelEncProcDec(
-                config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
-            )
-        
-        elif self.config.model.type == 'AnemoiModelEncProcDecHierachical':
-            self.model = AnemoiModelEncProcDecHierachical(
-                config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
-            )
-        
-        else:
-            raise(ValueError('Model class does not exist'))
-        
+        self.model = instantiate(
+            self.config.model.type,
+            config=self.config, 
+            data_indices=self.data_indices, 
+            graph_data=self.graph_data
+        )
 
         # Use the forward method of the model directly
         self.forward = self.model.forward
