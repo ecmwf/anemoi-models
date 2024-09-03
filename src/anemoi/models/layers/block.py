@@ -102,6 +102,7 @@ class GraphConvBaseBlock(BaseBlock):
         self,
         in_channels: int,
         out_channels: int,
+        layer_kernels: any,
         mlp_extra_layers: int = 0,
         activation: str = "SiLU",
         update_src_nodes: bool = True,
@@ -136,6 +137,7 @@ class GraphConvBaseBlock(BaseBlock):
             out_channels,
             n_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
         self.conv = GraphConv(
@@ -143,6 +145,7 @@ class GraphConvBaseBlock(BaseBlock):
             out_channels=out_channels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels
         )
 
     @abstractmethod
@@ -219,6 +222,7 @@ class GraphConvMapperBlock(GraphConvBaseBlock):
         self,
         in_channels: int,
         out_channels: int,
+        layer_kernels: any,
         mlp_extra_layers: int = 0,
         activation: str = "SiLU",
         update_src_nodes: bool = True,
@@ -229,6 +233,7 @@ class GraphConvMapperBlock(GraphConvBaseBlock):
             self,
             in_channels=in_channels,
             out_channels=out_channels,
+            layer_kernels=layer_kernels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
             update_src_nodes=update_src_nodes,

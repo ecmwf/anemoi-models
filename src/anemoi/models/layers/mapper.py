@@ -455,6 +455,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
+        layer_kernels: any = None,
     ) -> None:
         """Initialize GNNBaseMapper.
 
@@ -478,6 +479,8 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
             in_channels_src,
@@ -487,6 +490,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
             num_chunks=num_chunks,
             cpu_offload=cpu_offload,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
         self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
@@ -497,6 +501,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
             out_features=hidden_dim,
             n_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
         self.trainable = TrainableTensor(trainable_size=trainable_size, tensor_size=self.edge_attr.shape[0])
@@ -559,6 +564,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
+        layer_kernels: any = None,
     ) -> None:
         """Initialize GNNForwardMapper.
 
@@ -582,6 +588,8 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
             in_channels_src,
@@ -597,6 +605,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             sub_graph_edge_attributes=sub_graph_edge_attributes,
             src_grid_size=src_grid_size,
             dst_grid_size=dst_grid_size,
+            layer_kernels=layer_kernels,
         )
 
         self.proc = GraphConvMapperBlock(
@@ -606,6 +615,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             activation=activation,
             update_src_nodes=True,
             num_chunks=num_chunks,
+            layer_kernels=layer_kernels,
         )
 
         self.offload_layers(cpu_offload)
@@ -616,6 +626,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             out_features=hidden_dim,
             n_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
         self.emb_nodes_dst = MLP(
@@ -624,6 +635,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             out_features=hidden_dim,
             n_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
 
@@ -645,6 +657,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
+        layer_kernels: any = None,
     ) -> None:
         """Initialize GNNBackwardMapper.
 
@@ -668,6 +681,8 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
+        layer_kernels : any,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
             in_channels_src,
@@ -683,6 +698,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
             sub_graph_edge_attributes=sub_graph_edge_attributes,
             src_grid_size=src_grid_size,
             dst_grid_size=dst_grid_size,
+            layer_kernels=layer_kernels,
         )
 
         self.proc = GraphConvMapperBlock(
@@ -704,6 +720,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
             activation=self.activation,
             layer_norm=False,
             final_activation=False,
+            layer_kernels=layer_kernels,
         )
 
     def pre_process(self, x, shard_shapes, model_comm_group=None):

@@ -87,8 +87,8 @@ class MLP(nn.Module):
             mlp1.append(act_func())
 
         if layer_norm:
-            #mlp1.append(AutocastLayerNorm(out_features))
-            mlp1.append(LayerNorm(out_features).as_type(out_features))
+            mlp1.append(AutocastLayerNorm(out_features))
+            #mlp1.append(LayerNorm(out_features).as_type(out_features))
 
         self.model = CheckpointWrapper(mlp1) if checkpoints else mlp1
 
