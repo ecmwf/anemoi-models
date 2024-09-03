@@ -23,6 +23,7 @@ from torch_geometric.typing import Size
 
 from anemoi.models.distributed.graph import shard_tensor
 from anemoi.models.distributed.graph import sync_tensor
+from anemoi.models.distributed.khop_edges import sort_edges_1hop_chunks
 from anemoi.models.distributed.transformer import shard_heads
 from anemoi.models.distributed.transformer import shard_sequence
 from anemoi.models.layers.attention import MultiHeadSelfAttention
@@ -490,7 +491,24 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             ), "Only batch size of 1 is supported when model is sharded across GPUs"
 
         query, key, value, edges = self.shard_qkve_heads(query, key, value, edges, shapes, batch_size, model_comm_group)
-        out = self.conv(query=query, key=key, value=value, edge_attr=edges, edge_index=edge_index, size=size)
+
+        num_chunks = self.num_chunks if self.training else 4
+
+        # split 1-hop edges into chunks, compute attention and aggregate 
+        if self.num_chunks > 1:
+            edge_attr_list, edge_index_list = sort_edges_1hop_chunks(num_nodes=size, edge_attr=edges, edge_index=edge_index, num_chunks=num_chunks) 
+            for i in range(num_chunks):
+                out1 = self.conv(query=query, key=key, value=value, edge_attr=edge_attr_list[i], edge_index=edge_index_list[i], size=size)    
+                if i == 0:
+                    out = torch.zeros_like(out1, device=out1.device)
+                out = out + out1
+
+            # TODO take out assert after testing
+            out_original = self.conv(query=query, key=key, value=value, edge_attr=edges, edge_index=edge_index, size=size)
+            assert torch.allclose(out, out_original, atol=1e-3), "Chunked and single computation differ"
+        else: 
+            out = self.conv(query=query, key=key, value=value, edge_attr=edges, edge_index=edge_index, size=size)
+
         out = self.shard_output_seq(out, shapes, batch_size, model_comm_group)
         out = self.projection(out + x_r)
 
