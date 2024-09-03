@@ -173,14 +173,74 @@ class InputImputer(BaseImputer):
     def __init__(
         self,
         config=None,
-        statistics: Optional[dict] = None,
         data_indices: Optional[dict] = None,
+        statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
 
         self._create_imputation_indices(statistics)
 
         self._validate_indices()
+
+
+class ConstantAdditionalNaNImputer(BaseImputer):
+    """Imputes additional missing values in input using a constant value.
+    NaN values are not put back in place for model output.
+
+    Expects the config to have keys corresponding to available statistics
+    and values as lists of variables to impute.:
+    ```
+    default: "none"
+    1:
+        - y
+    5.0:
+        - x
+    3.14:
+        - q
+    ```
+    """
+
+    def __init__(
+        self,
+        config=None,
+        data_indices: Optional[dict] = None,
+        statistics: Optional[dict] = None,
+    ) -> None:
+        super().__init__(config, data_indices, statistics)
+
+        self._create_imputation_indices()
+
+        self._validate_indices()
+
+    def transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
+        """Impute missing values in the input tensor."""
+        if not in_place:
+            x = x.clone()
+
+        # Find NaN mask for given batch
+        nan_locations = torch.isnan(x)
+
+        # Choose correct index based on number of variables
+        if x.shape[-1] == self.num_training_input_vars:
+            index = self.index_training_input
+        elif x.shape[-1] == self.num_inference_input_vars:
+            index = self.index_inference_input
+        else:
+            raise ValueError(
+                f"Input tensor ({x.shape[-1]}) does not match the training "
+                f"({self.num_training_input_vars}) or inference shape ({self.num_inference_input_vars})",
+            )
+
+        # Replace values
+        for idx_src, (idx_dst, value) in zip(self.index_training_input, zip(index, self.replacement)):
+            if idx_dst is not None and not (~nan_locations[..., idx_dst]).all():
+                # only if NaN remaining
+                nan_locations_src = nan_locations[..., idx_dst]
+                x[..., idx_dst][nan_locations_src] = value
+        return x
+
+    def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
+        return x
 
 
 class ConstantImputer(BaseImputer):
@@ -200,7 +260,7 @@ class ConstantImputer(BaseImputer):
     """
 
     def __init__(
-        self, config=None, statistics: Optional[dict] = None, data_indices: Optional[IndexCollection] = None
+        self, config=None, data_indices: Optional[IndexCollection] = None, statistics: Optional[dict] = None
     ) -> None:
         super().__init__(config, data_indices, statistics)
 

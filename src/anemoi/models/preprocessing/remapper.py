@@ -288,8 +288,8 @@ class Remapper(BaseRemapperVariable):
     def __init__(
         self,
         config=None,
-        statistics: Optional[dict] = None,
         data_indices: Optional[dict] = None,
+        statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
 
