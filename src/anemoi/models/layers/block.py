@@ -495,7 +495,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
         num_chunks = self.num_chunks if self.training else 4
 
         # split 1-hop edges into chunks, compute attention and aggregate 
-        if self.num_chunks > 1:
+        if num_chunks > 1:
             edge_attr_list, edge_index_list = sort_edges_1hop_chunks(num_nodes=size, edge_attr=edges, edge_index=edge_index, num_chunks=num_chunks) 
             for i in range(num_chunks):
                 out1 = self.conv(query=query, key=key, value=value, edge_attr=edge_attr_list[i], edge_index=edge_index_list[i], size=size)    
