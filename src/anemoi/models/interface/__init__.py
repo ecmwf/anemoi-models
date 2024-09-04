@@ -14,7 +14,6 @@ from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
 from torch_geometric.data import HeteroData
 
-from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec, AnemoiModelEncProcDecHierachical
 from anemoi.models.preprocessing import Processors
 
 
@@ -73,14 +72,35 @@ class AnemoiModelInterface(torch.nn.Module):
         self.pre_processors = Processors(processors)
         self.post_processors = Processors(processors, inverse=True)
         
-    
+        #TODO: Make the instantiate work
         # Instantiate the model (Can be generalised to other models in the future, here we use AnemoiModelEncProcDec)
-        self.model = instantiate(
-            self.config.model.type,
-            config=self.config, 
-            data_indices=self.data_indices, 
-            graph_data=self.graph_data
-        )
+        # self.model = instantiate(
+        #     self.config.model,
+        #     data_indices=self.data_indices, 
+        #     graph_data=self.graph_data
+        # )
+
+        if self.config.model._target_ == 'anemoi.models.models.AnemoiModelEncProcDecHierachical':
+            from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDecHierachical
+
+            self.model = AnemoiModelEncProcDecHierachical(
+                config=self.config,
+                data_indices=self.data_indices, 
+                graph_data=self.graph_data
+            )
+        
+        elif self.config.model._target_ == 'anemoi.models.models.AnemoiModelEncProcDec':
+            from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
+
+            self.model = AnemoiModelEncProcDec(
+                config=self.config,
+                data_indices=self.data_indices, 
+                graph_data=self.graph_data
+            )
+        
+        else:
+            raise(NotImplementedError, f'This interface has not been implemented: {self.config.model._target_}')
+
 
         # Use the forward method of the model directly
         self.forward = self.model.forward

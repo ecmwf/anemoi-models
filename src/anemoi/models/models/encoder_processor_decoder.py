@@ -273,14 +273,15 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
         graph_data : HeteroData
             Graph definition
         """
+        nn.Module.__init__(self)
 
         self._graph_data = graph_data
-        self._graph_name_data = config.graph.data
-        self.num_hidden = config.graph.num_hidden_layers
-        self.level_process = config.graph.lebel_process
+        self._graph_name_data = 'data'
+        self.num_hidden = config.graph.num_hidden
+        self.level_process = config.graph.level_process
 
         ## Hidden layers
-        self._graph_hidden_names = [f'hidden_{i}' for i in range(self.num_hidden)]
+        self._graph_hidden_names = [f'hidden_{i}' for i in range(1, self.num_hidden + 1)]
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
@@ -294,19 +295,17 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
 
         # Register lat/lon of nodes
         self._register_latlon("data", self._graph_name_data)
-        self._latlons = []
         for hidden in self._graph_hidden_names:
             self._register_latlon(hidden, hidden)     
-            self._latlons.append(hidden)
 
-        self.num_channels = config.model.num_channels
+        self.num_channels = [config.model.num_channels * 2^i for i in range(self.num_hidden)]
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
         # Encoder data -> hidden
         self.encoder = instantiate(
             config.model.encoder,
             in_channels_src=input_dim,
-            in_channels_dst=self._latlons[0].shape[1] + self.trainable_hidden_sizes[0],
+            in_channels_dst=getattr(self, 'latlons_hidden_1').shape[1] + self.trainable_hidden_size,
             hidden_dim=self.num_channels[0],
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_hidden_names[0])],
             src_grid_size=self._data_grid_size,
@@ -325,6 +324,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
                         sub_graph=self._graph_data[(self._graph_hidden_names[i], "to", self._graph_hidden_names[i])],
                         src_grid_size=self._hidden_grid_sizes[i],
                         dst_grid_size=self._hidden_grid_sizes[i],
+                        num_layers=config.model.level_process_num_layers
                         )
                 )
             
@@ -374,7 +374,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             hidden_dim=self.num_channels[0],
             out_channels_dst=self.num_output_channels,
             sub_graph=self._graph_data[(self._graph_hidden_names[0], "to", self._graph_name_data)],
-            src_grid_size=self.self._hidden_grid_sizes[0],
+            src_grid_size=self._hidden_grid_sizes[0],
             dst_grid_size=self._data_grid_size,
         )
  
@@ -405,7 +405,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             )
         
         # Upscale
-        for i in range(len(self.num_hidden)-1, 0):
+        for i in range(self.num_hidden-1, 0):
             self.trainable_hidden.append(
                 TrainableTensor(
                     trainable_size=self.trainable_hidden_size, 
@@ -427,13 +427,13 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
         )
 
         x_latents = []
-        j=0 # iterator for trainable hidden
-        for i in range(self.num_hidden): 
-            x_latents.append(self.trainable_hidden[j](self._latlons[i], batch_size=batch_size))
+        j=0 # idx for trainable hidden
+        for i in range(1, self.num_hidden + 1): 
+            x_latents.append(self.trainable_hidden[j](getattr(self, f'latlons_hidden_{i}'), batch_size=batch_size))
             j+=1
         
-        for i in range(self.num_hidden-1, 0):
-            x_latents.append(self.trainable_hidden[j](self._latlons[i], batch_size=batch_size))
+        for i in range(self.num_hidden, 0):
+            x_latents.append(self.trainable_hidden[j](getattr(self, f'latlons_hidden_{i}'), batch_size=batch_size))
             j+=1
 
         # get shard shapes
