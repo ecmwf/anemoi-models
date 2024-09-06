@@ -5,78 +5,105 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import pytest
+from dataclasses import dataclass
+
+import hypothesis.strategies as st
 import torch
+from hypothesis import given
+from hypothesis import settings
 
 from anemoi.models.layers.mlp import MLP
 
 
-@pytest.fixture
-def batch_size():
-    return 1
+@dataclass
+class MLPConfig:
+    in_features: int = 48
+    hidden_dim: int = 23
+    out_features: int = 27
+    n_extra_layers: int = 0
+    activation: str = "SiLU"
+    final_activation: bool = False
+    layer_norm: bool = False
+    checkpoints: bool = False
 
 
-@pytest.fixture
-def nlatlon():
-    return 1024
+from_config = dict(
+    init_config=st.builds(
+        MLPConfig,
+        in_features=st.integers(min_value=1, max_value=100),
+        hidden_dim=st.integers(min_value=1, max_value=100),
+        out_features=st.integers(min_value=1, max_value=100),
+        n_extra_layers=st.integers(min_value=0, max_value=10),
+        activation=st.sampled_from(("ReLU", "SiLU", "GELU")),
+        final_activation=st.booleans(),
+        layer_norm=st.booleans(),
+        checkpoints=st.booleans(),
+    )
+)
 
-
-@pytest.fixture
-def num_features():
-    return 64
-
-
-@pytest.fixture
-def hdim():
-    return 128
-
-
-@pytest.fixture
-def num_out_feature():
-    return 36
+run_model = dict(
+    batch_size=st.integers(min_value=1, max_value=2),
+    num_gridpoints=st.integers(min_value=1, max_value=512),
+)
 
 
 class TestMLP:
-    def test_init(self, num_features, hdim, num_out_feature):
+
+    def create_model(self, init_config):
+        return MLP(
+            init_config.in_features,
+            init_config.hidden_dim,
+            init_config.out_features,
+            init_config.n_extra_layers,
+            init_config.activation,
+            init_config.final_activation,
+            init_config.layer_norm,
+            init_config.checkpoints,
+        )
+
+    @given(**from_config)
+    def test_init(self, init_config):
         """Test MLP initialization."""
-        mlp = MLP(num_features, hdim, num_out_feature, 0, "SiLU")
+        mlp = self.create_model(init_config)
+
         assert isinstance(mlp, MLP)
-        assert isinstance(mlp.model, torch.nn.Sequential)
-        assert len(mlp.model) == 6
+        if isinstance(mlp.model, torch.nn.Sequential):
+            length = 3 + 2 * (init_config.n_extra_layers + 1) + init_config.layer_norm + init_config.final_activation
+            assert len(mlp.model) == length
 
-        mlp = MLP(num_features, hdim, num_out_feature, 0, "ReLU", False, False, False)
-        assert len(mlp.model) == 5
-
-        mlp = MLP(num_features, hdim, num_out_feature, 1, "SiLU", False, False, False)
-        assert len(mlp.model) == 7
-
-    def test_forwards(self, batch_size, nlatlon, num_features, hdim, num_out_feature):
+    @settings(deadline=None)
+    @given(**run_model, **from_config)
+    def test_forwards(self, batch_size, num_gridpoints, init_config):
         """Test MLP forward pass."""
-
-        mlp = MLP(num_features, hdim, num_out_feature, layer_norm=True)
-        x_in = torch.randn((batch_size, nlatlon, num_features), dtype=torch.float32, requires_grad=True)
+        mlp = self.create_model(init_config)
+        num_features = init_config.in_features
+        num_out_feature = init_config.out_features
+        x_in = torch.randn((batch_size, num_gridpoints, num_features), dtype=torch.float32, requires_grad=True)
 
         out = mlp(x_in)
         assert out.shape == (
             batch_size,
-            nlatlon,
+            num_gridpoints,
             num_out_feature,
         ), "Output shape is not correct"
 
-    def test_backward(self, batch_size, nlatlon, num_features, hdim):
+    @given(**run_model, **from_config)
+    def test_backward(self, batch_size, num_gridpoints, init_config):
         """Test MLP backward pass."""
+        mlp = self.create_model(init_config)
+        num_features = init_config.in_features
+        num_out_feature = init_config.out_features
 
-        x_in = torch.randn((batch_size, nlatlon, num_features), dtype=torch.float32, requires_grad=True)
-        mlp_1 = MLP(num_features, hdim, hdim, layer_norm=True)
+        x_in = torch.randn((batch_size, num_gridpoints, num_features), dtype=torch.float32, requires_grad=True)
 
-        y = mlp_1(x_in)
-        assert y.shape == (batch_size, nlatlon, hdim)
+        y = mlp(x_in)
+        assert y.shape == (batch_size, num_gridpoints, num_out_feature)
 
         loss = y.sum()
         print("running backward on the dummy loss ...")
         loss.backward()
 
-        for param in mlp_1.parameters():
+        for param in mlp.parameters():
             assert param.grad is not None, f"param.grad is None for {param}"
             assert (
                 param.grad.shape == param.shape

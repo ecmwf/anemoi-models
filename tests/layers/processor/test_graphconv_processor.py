@@ -5,12 +5,29 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from dataclasses import dataclass
+
 import pytest
 import torch
 from torch_geometric.data import HeteroData
 
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.processor import GNNProcessor
+
+
+@dataclass
+class GNNProcessorInit:
+    sub_graph: HeteroData
+    edge_attributes: list[str]
+    num_layers: int = 2
+    num_channels: int = 128
+    num_chunks: int = 2
+    mlp_extra_layers: int = 0
+    activation: str = "SiLU"
+    cpu_offload: bool = False
+    src_grid_size: int = 13
+    dst_grid_size: int = 7
+    trainable_size: int = 8
 
 
 class TestGNNProcessor:
@@ -30,94 +47,37 @@ class TestGNNProcessor:
 
     @pytest.fixture
     def graphconv_init(self, fake_graph: HeteroData):
-        num_layers = 2
-        num_channels = 128
-        num_chunks = 2
-        mlp_extra_layers = 0
-        activation = "SiLU"
-        cpu_offload = False
-        sub_graph = fake_graph[("nodes", "to", "nodes")]
-        edge_attributes = ["edge_attr1", "edge_attr2"]
-        src_grid_size = 13
-        dst_grid_size = 7
-        trainable_size = 8
-        return (
-            num_layers,
-            num_channels,
-            num_chunks,
-            mlp_extra_layers,
-            activation,
-            cpu_offload,
-            sub_graph,
-            edge_attributes,
-            src_grid_size,
-            dst_grid_size,
-            trainable_size,
+        return GNNProcessorInit(
+            sub_graph=fake_graph[("nodes", "to", "nodes")], edge_attributes=["edge_attr1", "edge_attr2"]
         )
 
     @pytest.fixture
     def graphconv_processor(self, graphconv_init):
-        (
-            num_layers,
-            num_channels,
-            num_chunks,
-            mlp_extra_layers,
-            activation,
-            cpu_offload,
-            sub_graph,
-            edge_attributes,
-            src_grid_size,
-            dst_grid_size,
-            trainable_size,
-        ) = graphconv_init
         return GNNProcessor(
-            num_layers=num_layers,
-            num_channels=num_channels,
-            num_chunks=num_chunks,
-            mlp_extra_layers=mlp_extra_layers,
-            activation=activation,
-            cpu_offload=cpu_offload,
-            sub_graph=sub_graph,
-            sub_graph_edge_attributes=edge_attributes,
-            src_grid_size=src_grid_size,
-            dst_grid_size=dst_grid_size,
-            trainable_size=trainable_size,
+            num_layers=graphconv_init.num_layers,
+            num_channels=graphconv_init.num_channels,
+            num_chunks=graphconv_init.num_chunks,
+            mlp_extra_layers=graphconv_init.mlp_extra_layers,
+            activation=graphconv_init.activation,
+            cpu_offload=graphconv_init.cpu_offload,
+            sub_graph=graphconv_init.sub_graph,
+            sub_graph_edge_attributes=graphconv_init.edge_attributes,
+            src_grid_size=graphconv_init.src_grid_size,
+            dst_grid_size=graphconv_init.dst_grid_size,
+            trainable_size=graphconv_init.trainable_size,
         )
 
     def test_graphconv_processor_init(self, graphconv_processor, graphconv_init):
-        (
-            num_layers,
-            num_channels,
-            num_chunks,
-            _mlp_extra_layers,
-            _activation,
-            _cpu_offload,
-            _sub_graph,
-            _edge_attributes,
-            _src_grid_size,
-            _dst_grid_size,
-            _trainable_size,
-        ) = graphconv_init
-        assert graphconv_processor.num_chunks == num_chunks
-        assert graphconv_processor.num_channels == num_channels
-        assert graphconv_processor.chunk_size == num_layers // num_chunks
+        assert graphconv_processor.num_chunks == graphconv_init.num_chunks
+        assert graphconv_processor.num_channels == graphconv_init.num_channels
+        assert graphconv_processor.chunk_size == graphconv_init.num_layers // graphconv_init.num_chunks
         assert isinstance(graphconv_processor.trainable, TrainableTensor)
 
     def test_forward(self, graphconv_processor, graphconv_init):
         batch_size = 1
-        (
-            _num_layers,
-            num_channels,
-            _num_chunks,
-            _mlp_extra_layers,
-            _activation,
-            _cpu_offload,
-            _sub_graph,
-            _edge_attributes,
-            _src_grid_size,
-            _dst_grid_size,
-            trainable_size,
-        ) = graphconv_init
+        num_channels = graphconv_init.num_channels
+        trainable_size = graphconv_init.trainable_size
+
         x = torch.rand((self.NUM_EDGES, num_channels))
         shard_shapes = [list(x.shape)]
 

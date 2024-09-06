@@ -5,35 +5,44 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from dataclasses import dataclass
+
 import pytest
 
 from anemoi.models.layers.processor import BaseProcessor
 
 
+@dataclass
+class ProcessorInit:
+    num_layers: int = 4
+    num_channels: int = 128
+    num_chunks: int = 2
+    activation: str = "GELU"
+    cpu_offload: bool = False
+
+
 @pytest.fixture
 def processor_init():
-    num_layers = 4
-    num_channels = 128
-    num_chunks = 2
-    activation = "GELU"
-    cpu_offload = False
-    return num_layers, num_channels, num_chunks, activation, cpu_offload
+    return ProcessorInit()
 
 
 @pytest.fixture()
 def base_processor(processor_init):
-    num_layers, num_channels, num_chunks, activation, cpu_offload = processor_init
     return BaseProcessor(
-        num_layers,
-        num_channels=num_channels,
-        num_chunks=num_chunks,
-        activation=activation,
-        cpu_offload=cpu_offload,
+        num_layers=processor_init.num_layers,
+        num_channels=processor_init.num_channels,
+        num_chunks=processor_init.num_chunks,
+        activation=processor_init.activation,
+        cpu_offload=processor_init.cpu_offload,
     )
 
 
 def test_base_processor_init(processor_init, base_processor):
-    num_layers, num_channels, num_chunks, *_ = processor_init
+    num_layers, num_channels, num_chunks = (
+        processor_init.num_layers,
+        processor_init.num_channels,
+        processor_init.num_chunks,
+    )
 
     assert isinstance(base_processor.num_chunks, int), "num_layers should be an integer"
     assert isinstance(base_processor.num_channels, int), "num_channels should be an integer"
