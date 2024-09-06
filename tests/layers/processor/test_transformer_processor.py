@@ -5,69 +5,49 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from dataclasses import dataclass
+
 import pytest
 import torch
 
 from anemoi.models.layers.processor import TransformerProcessor
 
 
+@dataclass
+class TransformerProcessorConfig:
+    num_layers: int = 2
+    window_size: int = 10
+    num_channels: int = 128
+    num_chunks: int = 2
+    activation: str = "GELU"
+    cpu_offload: bool = False
+    num_heads: int = 16
+    mlp_hidden_ratio: int = 4
+
+
 @pytest.fixture
 def transformer_processor_init():
-    num_layers = 2
-    window_size = 10
-    num_channels = 128
-    num_chunks = 2
-    activation = "GELU"
-    cpu_offload = False
-    num_heads = 16
-    mlp_hidden_ratio = 4
-    return (
-        num_layers,
-        window_size,
-        num_channels,
-        num_chunks,
-        activation,
-        cpu_offload,
-        num_heads,
-        mlp_hidden_ratio,
-    )
+    return TransformerProcessorConfig()
 
 
 @pytest.fixture
 def transformer_processor(transformer_processor_init):
-    (
-        num_layers,
-        window_size,
-        num_channels,
-        num_chunks,
-        activation,
-        cpu_offload,
-        num_heads,
-        mlp_hidden_ratio,
-    ) = transformer_processor_init
     return TransformerProcessor(
-        num_layers=num_layers,
-        window_size=window_size,
-        num_channels=num_channels,
-        num_chunks=num_chunks,
-        activation=activation,
-        cpu_offload=cpu_offload,
-        num_heads=num_heads,
-        mlp_hidden_ratio=mlp_hidden_ratio,
+        num_layers=transformer_processor_init.num_layers,
+        window_size=transformer_processor_init.window_size,
+        num_channels=transformer_processor_init.num_channels,
+        num_chunks=transformer_processor_init.num_chunks,
+        activation=transformer_processor_init.activation,
+        cpu_offload=transformer_processor_init.cpu_offload,
+        num_heads=transformer_processor_init.num_heads,
+        mlp_hidden_ratio=transformer_processor_init.mlp_hidden_ratio,
     )
 
 
 def test_transformer_processor_init(transformer_processor, transformer_processor_init):
-    (
-        num_layers,
-        _window_size,
-        num_channels,
-        num_chunks,
-        _activation,
-        _cpu_offload,
-        _num_heads,
-        _mlp_hidden_ratio,
-    ) = transformer_processor_init
+    num_layers = transformer_processor_init.num_layers
+    num_channels = transformer_processor_init.num_channels
+    num_chunks = transformer_processor_init.num_chunks
     assert isinstance(transformer_processor, TransformerProcessor)
     assert transformer_processor.num_chunks == num_chunks
     assert transformer_processor.num_channels == num_channels
@@ -75,16 +55,7 @@ def test_transformer_processor_init(transformer_processor, transformer_processor
 
 
 def test_transformer_processor_forward(transformer_processor, transformer_processor_init):
-    (
-        _num_layers,
-        _window_size,
-        num_channels,
-        _num_chunks,
-        _activation,
-        _cpu_offload,
-        _num_heads,
-        _mlp_hidden_ratio,
-    ) = transformer_processor_init
+    num_channels = transformer_processor_init.num_channels
     gridsize = 100
     batch_size = 1
     x = torch.rand(gridsize, num_channels)
