@@ -74,7 +74,7 @@ class TestGraphTransformerProcessor:
             trainable_size,
         ) = graphtransformer_init
         return GraphTransformerProcessor(
-            num_layers,
+            num_layers=num_layers,
             num_channels=num_channels,
             num_chunks=num_chunks,
             num_heads=num_heads,

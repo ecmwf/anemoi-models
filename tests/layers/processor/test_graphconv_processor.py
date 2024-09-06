@@ -38,8 +38,8 @@ class TestGNNProcessor:
         cpu_offload = False
         sub_graph = fake_graph[("nodes", "to", "nodes")]
         edge_attributes = ["edge_attr1", "edge_attr2"]
-        src_grid_size = 0
-        dst_grid_size = 0
+        src_grid_size = 13
+        dst_grid_size = 7
         trainable_size = 8
         return (
             num_layers,
@@ -71,7 +71,7 @@ class TestGNNProcessor:
             trainable_size,
         ) = graphconv_init
         return GNNProcessor(
-            num_layers,
+            num_layers=num_layers,
             num_channels=num_channels,
             num_chunks=num_chunks,
             mlp_extra_layers=mlp_extra_layers,
