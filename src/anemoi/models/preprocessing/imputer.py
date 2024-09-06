@@ -97,7 +97,7 @@ class BaseImputer(BasePreprocessor, ABC):
             else:
                 raise TypeError(f"Statistics {type(statistics)} is optional and not a dictionary")
 
-            LOGGER.debug(f"Imputer: replacing NaNs in {name} with value {self.replacement[-1]}")
+            LOGGER.info(f"Imputer: replacing NaNs in {name} with value {self.replacement[-1]}")
 
     def _expand_subset_mask(self, x: torch.Tensor, idx_src: int) -> torch.Tensor:
         """Expand the subset of the mask to the correct shape."""
@@ -113,6 +113,10 @@ class BaseImputer(BasePreprocessor, ABC):
             # The mask is only saved for the last two dimensions (grid, variable)
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
             self.nan_locations = torch.isnan(x[idx].squeeze())
+            for var in self.method_config["nan_mask"]:
+                idx_var = self.data_indices.data.input.name_to_index[var]
+                idx_nanmaskvar = self.data_indices.data.input.name_to_index[self.method_config["nan_mask"][var]]
+                self.nan_locations[:, idx_var] = self.nan_locations[:, idx_nanmaskvar]
 
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
