@@ -60,7 +60,7 @@ class BasePreprocessor(nn.Module):
     def _process_config(self, config):
         _special_keys = ["default", "remap"]
         default = config.get("default", "none")
-        self.remap = config.get("remap", {})
+        self.remap = config.get("remap", {})[0]
         method_config = {k: v for k, v in config.items() if k not in _special_keys and v is not None and v != "none"}
 
         if not method_config:
