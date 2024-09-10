@@ -56,6 +56,7 @@ def remap_normalizer():
                 },
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
+                "remapped": {},
             },
         },
     )
