@@ -54,7 +54,7 @@ class BasePreprocessor(nn.Module):
         remap : dict
             Dictionary of the variables with remapped names in the config
         """
-        
+
         super().__init__()
 
         self.default, self.method_config = self._process_config(config)
