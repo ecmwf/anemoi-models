@@ -496,8 +496,9 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
         query, key, value, edges = self.shard_qkve_heads(query, key, value, edges, shapes, batch_size, model_comm_group)
 
         num_chunks = self.num_chunks if self.training else NUM_CHUNKS_INFERENCE
+
         if num_chunks > 1:
-            # split 1-hop edges into chunks, compute attention and aggregate
+            # split 1-hop edges into chunks, compute self.conv chunk-wise and aggregate
             edge_attr_list, edge_index_list = sort_edges_1hop_chunks(
                 num_nodes=size, edge_attr=edges, edge_index=edge_index, num_chunks=num_chunks
             )
@@ -518,27 +519,21 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
 
         out = self.shard_output_seq(out, shapes, batch_size, model_comm_group)
 
-        # split into node chunks, apply projection(out + x_r) chunk-wise, concatenate
-        out_chunks = list(torch.tensor_split(out + x_r, num_chunks, dim=0))
-        for i in range(num_chunks):
-            out_chunks[i] = self.projection(out_chunks[i])
-        out = torch.cat(out_chunks, dim=0)
+        # compute out = self.projection(out + x_r) in chunks:
+        out = torch.cat([self.projection(chunk) for chunk in torch.tensor_split(out + x_r, num_chunks, dim=0)], dim=0)
 
         out = out + x_skip[1]
 
-        # split dst nodes into node chunks, apply MLP chunk-wise, concatenate
-        nodes_new_dst = list(out.tensor_split(num_chunks, dim=0))  # list for immutability
-        for i in range(num_chunks):
-            nodes_new_dst[i] = self.node_dst_mlp(nodes_new_dst[i]) + nodes_new_dst[i]
-        nodes_new_dst = torch.cat(nodes_new_dst, dim=0)
+        # compute nodes_new_dst = self.node_dst_mlp(out) + out in chunks:
+        nodes_new_dst = torch.cat(
+            [self.node_dst_mlp(chunk) + chunk for chunk in out.tensor_split(num_chunks, dim=0)], dim=0
+        )
 
         if self.update_src_nodes:
-            # same for src nodes
-            nodes_new_src = list(x_skip[0].tensor_split(num_chunks, dim=0))
-            for i in range(num_chunks):
-                nodes_new_src[i] = self.node_src_mlp(nodes_new_src[i]) + nodes_new_src[i]
-
-            nodes_new_src = torch.cat(nodes_new_src, dim=0)
+            # compute nodes_new_src = self.node_src_mlp(out) + out in chunks:
+            nodes_new_src = torch.cat(
+                [self.node_src_mlp(chunk) + chunk for chunk in x_skip[0].tensor_split(num_chunks, dim=0)], dim=0
+            )
         else:
             nodes_new_src = x_skip[0]
 
