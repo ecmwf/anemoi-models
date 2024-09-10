@@ -14,6 +14,8 @@ import torch
 from torch import Tensor
 from torch import nn
 
+from anemoi.models.data_indices.collection import IndexCollection
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -23,15 +25,17 @@ class BasePreprocessor(nn.Module):
     def __init__(
         self,
         config=None,
+        data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
-        data_indices: Optional[dict] = None,
     ) -> None:
         """Initialize the preprocessor.
 
         Parameters
         ----------
         config : DotDict
-            configuration object
+            configuration object of the processor
+        data_indices : IndexCollection
+            Data indices for input and output variables
         statistics : dict
             Data statistics dictionary
         data_indices : dict
@@ -50,6 +54,7 @@ class BasePreprocessor(nn.Module):
         remap : dict
             Dictionary of the variables with remapped names in the config
         """
+        
         super().__init__()
 
         self.default, self.method_config = self._process_config(config)

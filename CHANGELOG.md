@@ -13,6 +13,7 @@ Keep it human-readable, your future self will thank you!
 ### Added
  - CI workflow to update the changelog on release
  - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
+ - Remapper: Preprocessor for remapping one variable to multiple ones. Includes changes to the data indices since the remapper changes the number of variables.
 
 ### Changed
 
