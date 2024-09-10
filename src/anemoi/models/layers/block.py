@@ -8,6 +8,7 @@
 #
 
 import logging
+import os
 from abc import ABC
 from abc import abstractmethod
 from typing import Optional
@@ -32,6 +33,7 @@ from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
 
 LOGGER = logging.getLogger(__name__)
+NUM_CHUNKS_INFERENCE = int(os.environ.get("ANEMOI_NUM_CHUNKS_INFERENCE", "1"))
 
 
 class BaseBlock(nn.Module, ABC):
@@ -462,6 +464,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
         )
 
         self.layer_norm2 = nn.LayerNorm(in_channels)
+        # self.cache = {"num_nodes": None, "num_edges": None, "batch_size": None, "chunks": None}
 
     def forward(
         self,
@@ -492,30 +495,52 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
 
         query, key, value, edges = self.shard_qkve_heads(query, key, value, edges, shapes, batch_size, model_comm_group)
 
-        num_chunks = self.num_chunks if self.training else 4
-
-        # split 1-hop edges into chunks, compute attention and aggregate 
+        num_chunks = self.num_chunks if self.training else NUM_CHUNKS_INFERENCE
         if num_chunks > 1:
-            edge_attr_list, edge_index_list = sort_edges_1hop_chunks(num_nodes=size, edge_attr=edges, edge_index=edge_index, num_chunks=num_chunks) 
+            # split 1-hop edges into chunks, compute attention and aggregate
+            edge_attr_list, edge_index_list = sort_edges_1hop_chunks(
+                num_nodes=size, edge_attr=edges, edge_index=edge_index, num_chunks=num_chunks
+            )
             for i in range(num_chunks):
-                out1 = self.conv(query=query, key=key, value=value, edge_attr=edge_attr_list[i], edge_index=edge_index_list[i], size=size)    
+                out1 = self.conv(
+                    query=query,
+                    key=key,
+                    value=value,
+                    edge_attr=edge_attr_list[i],
+                    edge_index=edge_index_list[i],
+                    size=size,
+                )
                 if i == 0:
                     out = torch.zeros_like(out1, device=out1.device)
                 out = out + out1
-
-            # TODO take out assert after testing
-            out_original = self.conv(query=query, key=key, value=value, edge_attr=edges, edge_index=edge_index, size=size)
-            assert torch.allclose(out, out_original, atol=1e-3), "Chunked and single computation differ"
-        else: 
+        else:
             out = self.conv(query=query, key=key, value=value, edge_attr=edges, edge_index=edge_index, size=size)
 
         out = self.shard_output_seq(out, shapes, batch_size, model_comm_group)
-        out = self.projection(out + x_r)
+
+        # split into node chunks, apply projection(out + x_r) chunk-wise, concatenate
+        out_chunks = list(torch.tensor_split(out + x_r, num_chunks, dim=0))
+        for i in range(num_chunks):
+            out_chunks[i] = self.projection(out_chunks[i])
+        out = torch.cat(out_chunks, dim=0)
 
         out = out + x_skip[1]
-        nodes_new_dst = self.node_dst_mlp(out) + out
 
-        nodes_new_src = self.node_src_mlp(x_skip[0]) + x_skip[0] if self.update_src_nodes else x_skip[0]
+        # split dst nodes into node chunks, apply MLP chunk-wise, concatenate
+        nodes_new_dst = list(out.tensor_split(num_chunks, dim=0))  # list for immutability
+        for i in range(num_chunks):
+            nodes_new_dst[i] = self.node_dst_mlp(nodes_new_dst[i]) + nodes_new_dst[i]
+        nodes_new_dst = torch.cat(nodes_new_dst, dim=0)
+
+        if self.update_src_nodes:
+            # same for src nodes
+            nodes_new_src = list(x_skip[0].tensor_split(num_chunks, dim=0))
+            for i in range(num_chunks):
+                nodes_new_src[i] = self.node_src_mlp(nodes_new_src[i]) + nodes_new_src[i]
+
+            nodes_new_src = torch.cat(nodes_new_src, dim=0)
+        else:
+            nodes_new_src = x_skip[0]
 
         nodes_new = (nodes_new_src, nodes_new_dst)
 

@@ -83,13 +83,11 @@ def sort_edges_1hop(
 
     return edge_attr, edge_index, [], []
 
+
 def sort_edges_1hop_chunks(
-    num_nodes: Union[int, tuple[int, int]],
-    edge_attr: Tensor,
-    edge_index: Adj,
-    num_chunks: int
+    num_nodes: Union[int, tuple[int, int]], edge_attr: Tensor, edge_index: Adj, num_chunks: int
 ) -> tuple[list[Tensor], list[Adj]]:
-    """Rearanges edges into 1 hop neighbourhood chunks. 
+    """Rearanges edges into 1 hop neighbourhood chunks.
 
     Parameters
     ----------
@@ -109,7 +107,7 @@ def sort_edges_1hop_chunks(
     """
     if isinstance(num_nodes, int):
         node_chunks = torch.arange(num_nodes, device=edge_index.device).tensor_split(num_chunks)
-    else: 
+    else:
         nodes_src = torch.arange(num_nodes[0], device=edge_index.device)
         node_chunks = torch.arange(num_nodes[1], device=edge_index.device).tensor_split(num_chunks)
 
@@ -127,5 +125,5 @@ def sort_edges_1hop_chunks(
             )
         edge_index_list.append(edge_index_chunk)
         edge_attr_list.append(edge_attr_chunk)
-    
+
     return edge_attr_list, edge_index_list
