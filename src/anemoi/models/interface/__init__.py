@@ -72,19 +72,20 @@ class AnemoiModelInterface(torch.nn.Module):
         self.pre_processors = Processors(processors)
         self.post_processors = Processors(processors, inverse=True)
         
-        #TODO: Make the instantiate work
+        # # TODO: Make the instantiate work
         # self.model = instantiate(
-        #     self.config.model.model,
-        #     config=self.config,
+        #     self.config.model,
+        #     model_config=self.config,
         #     data_indices=self.data_indices, 
-        #     graph_data=self.graph_data
+        #     graph_data=self.graph_data,
+        #     _recursive_=False
         # )
 
-        if self.config.model._target_ == 'anemoi.models.models.AnemoiModelEncProcDecHierachical':
-            from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDecHierachical
+        if self.config.model._target_ == 'anemoi.models.models.AnemoiModelEncProcDecHierarchical':
+            from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDecHierarchical
 
-            self.model = AnemoiModelEncProcDecHierachical(
-                config=self.config,
+            self.model = AnemoiModelEncProcDecHierarchical(
+                model_config=self.config,
                 data_indices=self.data_indices, 
                 graph_data=self.graph_data
             )
@@ -93,7 +94,7 @@ class AnemoiModelInterface(torch.nn.Module):
             from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
 
             self.model = AnemoiModelEncProcDec(
-                config=self.config,
+                model_config=self.config,
                 data_indices=self.data_indices, 
                 graph_data=self.graph_data
             )

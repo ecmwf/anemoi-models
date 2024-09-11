@@ -32,7 +32,7 @@ class AnemoiModelEncProcDec(nn.Module):
     def __init__(
         self,
         *,
-        config: DotDict,
+        model_config: DotDict,
         data_indices: dict,
         graph_data: HeteroData,
     ) -> None:
@@ -51,15 +51,15 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self._graph_data = graph_data
  
-        self._graph_name_data = config.graph.data
-        self._graph_name_hidden = config.graph.hidden
+        self._graph_name_data = model_config.graph.data
+        self._graph_name_hidden = model_config.graph.hidden
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
 
-        self.multi_step = config.training.multistep_input
+        self.multi_step = model_config.training.multistep_input
 
-        self._define_tensor_sizes(config)
+        self._define_tensor_sizes(model_config)
 
         # Create trainable tensors
         self._create_trainable_attributes()
@@ -68,13 +68,13 @@ class AnemoiModelEncProcDec(nn.Module):
         self._register_latlon("data", self._graph_name_data)
         self._register_latlon("hidden", self._graph_name_hidden)
 
-        self.num_channels = config.model.num_channels
+        self.num_channels = model_config.model.num_channels
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
         # Encoder data -> hidden
         self.encoder = instantiate(
-            config.model.encoder,
+            model_config.model.encoder,
             in_channels_src=input_dim,
             in_channels_dst=self.latlons_hidden.shape[1] + self.trainable_hidden_size,
             hidden_dim=self.num_channels,
@@ -84,7 +84,7 @@ class AnemoiModelEncProcDec(nn.Module):
         )
         # Processor hidden -> hidden
         self.processor = instantiate(
-            config.model.processor,
+            model_config.model.processor,
             num_channels=self.num_channels,
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
             src_grid_size=self._hidden_grid_size,
@@ -92,7 +92,7 @@ class AnemoiModelEncProcDec(nn.Module):
         )
         # Decoder hidden -> data
         self.decoder = instantiate(
-            config.model.decoder,
+            model_config.model.decoder,
             in_channels_src=self.num_channels,
             in_channels_dst=input_dim,
             hidden_dim=self.num_channels,
@@ -250,13 +250,13 @@ class AnemoiModelEncProcDec(nn.Module):
         return x_out
 
 
-class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
+class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
     """Message passing hierarchical graph neural network."""
 
     def __init__(
         self,
         *,
-        config: DotDict,
+        model_config: DotDict,
         data_indices: dict,
         graph_data: HeteroData,
     ) -> None:
@@ -276,11 +276,11 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
         self._graph_data = graph_data
 
         # Unpack config for hierarchical graph
-        self.num_hidden = config.graph.num_hidden
-        self.level_process = config.graph.level_process
+        self.num_hidden = model_config.graph.num_hidden
+        self.level_process = model_config.graph.level_process
         self.level_proc_idx = 2 if self.level_process else 1
         # hidden_dims is the dimentionality of features at each depth 
-        self.hidden_dims = [config.model.num_channels*(2**i)-4 for i in range(self.num_hidden)] # first 4 will be for lat-lon positional encoding
+        self.hidden_dims = [model_config.model.num_channels*(2**i)-4 for i in range(self.num_hidden)] # first 4 will be for lat-lon positional encoding
 
         ## Get hidden layers names
         self._graph_name_data = "data"
@@ -288,8 +288,8 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
-        self.multi_step = config.training.multistep_input
-        self._define_tensor_sizes(config)
+        self.multi_step = model_config.training.multistep_input
+        self._define_tensor_sizes(model_config)
 
         # Create trainable tensors
         self._create_trainable_attributes()
@@ -304,7 +304,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
 
         # Encoder data -> hidden
         self.encoder = instantiate(
-            config.model.encoder,
+            model_config.model.encoder,
             in_channels_src=input_dim,
             in_channels_dst=getattr(self, 'latlons_hidden_1_down').shape[1] + self.hidden_dims[0],
             hidden_dim=getattr(self, 'latlons_hidden_1_down').shape[1] + self.hidden_dims[0],
@@ -320,12 +320,12 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             if self.level_process:
                 self.downscale.append(
                     instantiate(
-                        config.model.processor,
+                        model_config.model.processor,
                         num_channels= getattr(self, f'latlons_hidden_{i+1}_down').shape[1] + self.hidden_dims[i],
                         sub_graph=self._graph_data[(self._graph_hidden_names[i], "to", self._graph_hidden_names[i])],
                         src_grid_size=self._hidden_grid_sizes[i],
                         dst_grid_size=self._hidden_grid_sizes[i],
-                        num_layers=config.model.level_process_num_layers
+                        num_layers=model_config.model.level_process_num_layers
                         )
                 )
             
@@ -333,7 +333,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             if i != self.num_hidden-1:
                 self.downscale.append(
                     instantiate(
-                        config.model.encoder,
+                        model_config.model.encoder,
                         in_channels_src=getattr(self, f'latlons_hidden_{i+2}_down').shape[1] + self.hidden_dims[i],
                         in_channels_dst=getattr(self, f'latlons_hidden_{i+2}_down').shape[1] + self.hidden_dims[i+1],
                         hidden_dim= getattr(self, f'latlons_hidden_{i+2}_down').shape[1] + self.hidden_dims[i+1],
@@ -351,19 +351,19 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             if self.level_process and i != self.num_hidden-1:
                 self.upscale.append(
                     instantiate(
-                        config.model.processor,
+                        model_config.model.processor,
                         num_channels=getattr(self, f'latlons_hidden_{i+1}_up').shape[1] + self.hidden_dims[i],
                         sub_graph=self._graph_data[(self._graph_hidden_names[i], "to", self._graph_hidden_names[i])],
                         src_grid_size=self._hidden_grid_sizes[i],
                         dst_grid_size=self._hidden_grid_sizes[i],
-                        num_layers=config.model.level_process_num_layers
+                        num_layers=model_config.model.level_process_num_layers
                         )
                 )
             
             # Process to next level
             self.upscale.append(
                 instantiate(
-                    config.model.decoder,
+                    model_config.model.decoder,
                     in_channels_src=getattr(self, f'latlons_hidden_{i+1}_up').shape[1] + self.hidden_dims[i],
                     in_channels_dst=getattr(self, f'latlons_hidden_{i}_up').shape[1] + self.hidden_dims[i-1],
                     hidden_dim=getattr(self, f'latlons_hidden_{i}_up').shape[1] + self.hidden_dims[i],
@@ -377,7 +377,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
 
         # Decoder hidden -> data
         self.decoder = instantiate(
-            config.model.decoder,
+            model_config.model.decoder,
             in_channels_src=self.hidden_dims[0],
             in_channels_dst=input_dim,
             hidden_dim=getattr(self, f'latlons_hidden_{self.num_hidden}_up').shape[1] + self.hidden_dims[0],

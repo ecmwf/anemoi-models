@@ -1,4 +1,4 @@
-_target_: anemoi.models.models.AnemoiModelEncProcDecHierachical
+_target_: anemoi.models.models.AnemoiModelEncProcDecHierarchical
 
 activation: GELU
 num_channels: 32
