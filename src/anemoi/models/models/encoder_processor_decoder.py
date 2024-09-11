@@ -72,7 +72,6 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self.layer_kernels=config.model.layer_kernels
 
-        LOGGER.info(f"{self.layer_kernels=}")
         #try loading each of the requested kernels
         #If a given kernel isnt availible, fallback to the torch.NN implementation of the same name
         #TODO I would prefer to come up with a way for hydra to loop over options to instiate, rather then having to catch errors like this
@@ -85,8 +84,7 @@ class AnemoiModelEncProcDec(nn.Module):
                 LOGGER.info(f"{kernel_entry['_target_']} not availible! falling back to torch.nn.{kernel}")
                 #config.model.layer_kernels[kernel]["_target_"]=f"torch.nn.{kernel}"
                 self.layer_kernels[kernel] = DotDict({'_target_': f"torch.nn.{kernel}", '_partial_': True}) #replace the entry, to remove any args passed to the orginal kernel
-                LOGGER.info(f"{self.layer_kernels[kernel]=}")
-        LOGGER.info(f"{self.layer_kernels=}")
+        LOGGER.debug(f"{self.layer_kernels=}")
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
