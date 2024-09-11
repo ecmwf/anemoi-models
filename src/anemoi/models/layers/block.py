@@ -64,8 +64,8 @@ class TransformerProcessorBlock(BaseBlock):
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
-        LayerNorm=layer_kernels['LayerNorm']
-        Linear=layer_kernels['Linear']
+        LayerNorm = layer_kernels["LayerNorm"]
+        Linear = layer_kernels["Linear"]
 
         self.layer_norm1 = LayerNorm(num_channels)
 
@@ -145,7 +145,7 @@ class GraphConvBaseBlock(BaseBlock):
             out_channels=out_channels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
-            layer_kernels=layer_kernels
+            layer_kernels=layer_kernels,
         )
 
     @abstractmethod
@@ -328,8 +328,8 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         self.num_chunks = num_chunks
 
-        Linear=layer_kernels['Linear']
-        LayerNorm=layer_kernels['LayerNorm']
+        Linear = layer_kernels["Linear"]
+        LayerNorm = layer_kernels["LayerNorm"]
 
         self.lin_key = Linear(in_channels, num_heads * self.out_channels_conv)
         self.lin_query = Linear(in_channels, num_heads * self.out_channels_conv)
@@ -478,7 +478,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             layer_kernels=layer_kernels,
             **kwargs,
         )
-        LayerNorm=layer_kernels['LayerNorm']
+        LayerNorm = layer_kernels["LayerNorm"]
 
         self.layer_norm2 = LayerNorm(in_channels)
 

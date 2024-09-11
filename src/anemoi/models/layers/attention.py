@@ -55,11 +55,10 @@ class MultiHeadSelfAttention(nn.Module):
         self.head_dim = embed_dim // num_heads  # q k v
         self.window_size = (window_size, window_size)  # flash attention
         self.is_causal = is_causal
-        Linear=layer_kernels['Linear']
+        Linear = layer_kernels["Linear"]
 
         self.lin_qkv = Linear(embed_dim, 3 * embed_dim, bias=bias)
         self.attention = attn_func
-
 
         if not _FLASH_ATTENTION_AVAILABLE:
             LOGGER.warning("Flash attention not available, falling back to pytorch scaled_dot_product_attention")

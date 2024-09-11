@@ -68,8 +68,8 @@ class MLP(nn.Module):
         """
         super().__init__()
 
-        Linear=layer_kernels['Linear']
-        LayerNorm=layer_kernels['LayerNorm']
+        Linear = layer_kernels["Linear"]
+        LayerNorm = layer_kernels["LayerNorm"]
 
         try:
             act_func = getattr(nn, activation)
@@ -88,7 +88,7 @@ class MLP(nn.Module):
 
         if layer_norm:
             mlp1.append(AutocastLayerNorm(out_features))
-            #mlp1.append(LayerNorm(out_features).as_type(out_features))
+            # mlp1.append(LayerNorm(out_features).as_type(out_features))
 
         self.model = CheckpointWrapper(mlp1) if checkpoints else mlp1
 

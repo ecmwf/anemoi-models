@@ -342,7 +342,7 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
             layer_kernels=layer_kernels,
         )
 
-        Linear=layer_kernels["Linear"]
+        Linear = layer_kernels["Linear"]
 
         self.emb_nodes_src = Linear(self.in_channels_src, self.hidden_dim)
 
@@ -421,8 +421,8 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
             layer_kernels=layer_kernels,
         )
 
-        Linear=layer_kernels['Linear']
-        LayerNorm=layer_kernels['LayerNorm']
+        Linear = layer_kernels["Linear"]
+        LayerNorm = layer_kernels["LayerNorm"]
 
         self.node_data_extractor = nn.Sequential(
             LayerNorm(self.hidden_dim), Linear(self.hidden_dim, self.out_channels_dst)
