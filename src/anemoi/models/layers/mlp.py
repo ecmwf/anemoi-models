@@ -70,8 +70,8 @@ class MLP(nn.Module):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear=layer_kernels['Linear']
-        LayerNorm=layer_kernels['LayerNorm']
+        Linear = layer_kernels['Linear']
+        LayerNorm = layer_kernels['LayerNorm']
 
         try:
             act_func = getattr(nn, activation)
@@ -90,7 +90,7 @@ class MLP(nn.Module):
 
         if layer_norm:
             mlp1.append(AutocastLayerNorm(out_features))
-            #mlp1.append(LayerNorm(out_features).as_type(out_features))
+            # mlp1.append(LayerNorm(out_features).as_type(out_features))
 
         self.model = CheckpointWrapper(mlp1) if checkpoints else mlp1
 
