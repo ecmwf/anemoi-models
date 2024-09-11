@@ -104,7 +104,8 @@ class AnemoiModelEncProcDec(nn.Module):
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._data_grid_size,
         )
-
+        
+        # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
         self.boundings = nn.ModuleList(
             [
                 instantiate(cfg, name_to_index=self.data_indices.model.output.name_to_index)
