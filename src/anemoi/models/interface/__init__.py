@@ -73,9 +73,9 @@ class AnemoiModelInterface(torch.nn.Module):
         self.post_processors = Processors(processors, inverse=True)
         
         #TODO: Make the instantiate work
-        # Instantiate the model (Can be generalised to other models in the future, here we use AnemoiModelEncProcDec)
         # self.model = instantiate(
-        #     self.config.model,
+        #     self.config.model.model,
+        #     config=self.config,
         #     data_indices=self.data_indices, 
         #     graph_data=self.graph_data
         # )
