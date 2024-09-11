@@ -275,29 +275,27 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
 
         self._graph_data = graph_data
 
-        self._graph_name_data = 'data'
+        # Unpack config for hierarchical graph
         self.num_hidden = config.graph.num_hidden
         self.level_process = config.graph.level_process
+        self.level_proc_idx = 2 if self.level_process else 1
         # hidden_dims is the dimentionality of features at each depth 
         self.hidden_dims = [config.model.num_channels*(2**i)-4 for i in range(self.num_hidden)] # first 4 will be for lat-lon positional encoding
-        # num_channels is the number of channels in each MLP
-        self.num_channels = 1024
 
-        ## Hidden layers
-        self._graph_hidden_names = [f'hidden_{i}' for i in range(1, self.num_hidden + 1)]
+        ## Get hidden layers names
+        self._graph_name_data = "data"
+        self._graph_hidden_names = [f'hidden_{i}' for i in range(1, self.num_hidden + 1)] # All indexes here are strings and start from 1
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
-
         self.multi_step = config.training.multistep_input
-
         self._define_tensor_sizes(config)
 
         # Create trainable tensors
         self._create_trainable_attributes()
 
-        # Register lat/lon of nodes
-        self._register_latlon("data", self._graph_name_data)
+        # Register lat/lon for all nodes
+        self._register_latlon("data", "data")
         for hidden in self._graph_hidden_names:
             self._register_latlon(hidden+'_down', hidden)     
             self._register_latlon(hidden+'_up', hidden)     
@@ -345,8 +343,6 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
                     )
                 )
         
-        print('Downscale built correctly')
-
         # Upscale
         self.upscale = nn.ModuleList()
         for i in range(self.num_hidden-1, 0, -1):
@@ -379,8 +375,6 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
                 )
             )
 
-        print('Upscale built correctly')
-
         # Decoder hidden -> data
         self.decoder = instantiate(
             config.model.decoder,
@@ -393,7 +387,6 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             dst_grid_size=self._data_grid_size,
         )
 
-        print('Decoder built correctly')
  
     def _define_tensor_sizes(self, config: DotDict) -> None:
 
@@ -410,32 +403,31 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
     def _create_trainable_attributes(self) -> None:
         """Create all trainable attributes."""
         self.trainable_data = TrainableTensor(trainable_size=self.trainable_data_size, tensor_size=self._data_grid_size)
-        
         self.trainable_hidden = nn.ModuleList()
 
         # Downscale
         for i in range(0, self.num_hidden):
-            tmp_trainable = TrainableTensor(
-                trainable_size=self.hidden_dims[i], 
-                tensor_size=self._hidden_grid_sizes[i]
+            self.trainable_hidden.append(
+                TrainableTensor(
+                    trainable_size=self.hidden_dims[i], 
+                    tensor_size=self._hidden_grid_sizes[i]
+                )
             )
-            self.trainable_hidden.append(tmp_trainable)
         
         # Upscale
         for i in range(self.num_hidden-2, -1, -1):
-            tmp_trainable = TrainableTensor(
-                trainable_size=self.hidden_dims[i], 
-                tensor_size=self._hidden_grid_sizes[i]
+            self.trainable_hidden.append(
+                TrainableTensor(
+                    trainable_size=self.hidden_dims[i], 
+                    tensor_size=self._hidden_grid_sizes[i]
+                )
             )
-            self.trainable_hidden.append(tmp_trainable)
         
     def forward(self, x: Tensor, model_comm_group: Optional[ProcessGroup] = None) -> Tensor:
         batch_size = x.shape[0]
         ensemble_size = x.shape[2]
 
         # add data positional info (lat/lon)
-
-        print('Data shape: ', x.shape)
         x_data_latent = torch.cat(
             (
                 einops.rearrange(x, "batch time ensemble grid vars -> (batch ensemble grid) (time vars)"),
@@ -444,32 +436,24 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             dim=-1,  # feature dimension
         )
 
-        print('X Data Latent: ', x_data_latent.shape)
-
+        # Get all trainable parameters for the hidden layers -> initialisation of each hidden, which becomes trainable bias 
         x_latents = []
-        j=0 # idx for trainable hidden
+        j=0 
         for i in range(1, self.num_hidden + 1): 
-            x_latents.append(self.trainable_hidden[j](getattr(self, f'latlons_hidden_{i}_down'), batch_size=batch_size).to(x_data_latent.device))
+            x_latents.append(self.trainable_hidden[j](getattr(self, f'latlons_hidden_{i}_down'), batch_size=batch_size))
             j+=1
                 
         for i in range(self.num_hidden-1, 0, -1):
-            x_latents.append(self.trainable_hidden[j](getattr(self, f'latlons_hidden_{i}_up'), batch_size=batch_size).to(x_data_latent.device))
+            x_latents.append(self.trainable_hidden[j](getattr(self, f'latlons_hidden_{i}_up'), batch_size=batch_size))
             j+=1
         
-        print('X_latents:')
-        for i in range(j): print(x_latents[i].shape)
-        
-        # get shard shapes
+        # Get data and hidden shapes for sharding
         shard_shapes_data = get_shape_shards(x_data_latent, 0, model_comm_group)
         shard_shapes_hiddens = []
         for x_latent in x_latents: 
             shard_shapes_hiddens.append(get_shape_shards(x_latent, 0, model_comm_group))
 
-        print(shard_shapes_hiddens)
-
         # Run encoder
-        print('Starting encoder')
-        print('Input: ', x_data_latent.shape, x_latents[0].shape)
         x_data_latent, x_latent = self._run_mapper(
             self.encoder,
             (x_data_latent, x_latents[0]),
@@ -477,21 +461,14 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             shard_shapes=(shard_shapes_data, shard_shapes_hiddens[0]),
             model_comm_group=model_comm_group,
         )
-        print('Output: ', x_data_latent.shape, x_latent.shape)
-
-
         # Run processor
-        print('Starting Processor')
         x_latents_down = []
-        skip_connection_idx = 2 if self.level_process else 1
         curr_latent = x_latent   
 
         ## Downscale
-        print('Starting Downscale')     
         for i, layer in enumerate(self.downscale):
-            print('Input: ', curr_latent.shape, i%2 == 0)
-            if  i % 2 != 0:
-                print('Shard shapes:', (shard_shapes_hiddens[i//2], shard_shapes_hiddens[(i//2)+1]))
+            # Process to next level
+            if  i % self.level_proc_idx != 0:
                 _, curr_latent = self._run_mapper(
                     layer,
                     (curr_latent, x_latents[(i//2)+1]),
@@ -499,6 +476,7 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
                     shard_shapes=(shard_shapes_hiddens[i//2], shard_shapes_hiddens[(i//2)+1]),
                     model_comm_group=model_comm_group,
                 )
+            # Processing at same level
             else:
                 curr_latent = layer(
                     curr_latent,
@@ -506,47 +484,39 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
                     shard_shapes=shard_shapes_hiddens[i],
                     model_comm_group=model_comm_group,
                 )
-            print('Output: ', curr_latent.shape)
 
-            # store latents for skip connections
-            if i % skip_connection_idx == 0:
+                # store latents for skip connections
                 x_latents_down.append(curr_latent)
 
         # Remove hiddenmost latent from skip connection list
         x_latents_down.pop()
 
         ## Upscale
-        print('Starting Upscale')
         for j, layer in enumerate(self.upscale):
-            print('Input: ', curr_latent.shape, (i+j)%2 == 0)
-            if  (i+j) % 2 == 0:
-                print('Shard shapes:', (shard_shapes_hiddens[(i+j)//2], shard_shapes_hiddens[((i+j)//2)+1]))
+            layer_idx = i+j # i+j is cumulative layer index
+
+            # Process to next level
+            if  layer_idx % self.level_proc_idx == 0:
                 curr_latent = self._run_mapper(
                     layer,
-                    (curr_latent, x_latents[((i+j)//2)+1]),
+                    (curr_latent, x_latents[(layer_idx//2)+1]),
                     batch_size=batch_size,
-                    shard_shapes=(shard_shapes_hiddens[(i+j)//2], shard_shapes_hiddens[((i+j)//2)+1]),
+                    shard_shapes=(shard_shapes_hiddens[layer_idx//2], shard_shapes_hiddens[(layer_idx//2)+1]),
                     model_comm_group=model_comm_group,
-
                 )
+            # Processing at same level
             else:
                 curr_latent = layer(
                         curr_latent,
                         batch_size=batch_size,
-                        shard_shapes=shard_shapes_hiddens[(i+j)//2], #Cumulative layer list
+                        shard_shapes=shard_shapes_hiddens[layer_idx//2],
                         model_comm_group=model_comm_group,
                     )
                 
-            # Add skip connection
-            if j % skip_connection_idx:
                 curr_latent += x_latents_down.pop()
-
-            print('Output: ', curr_latent.shape)
 
 
         # Run decoder
-        print('Starting decoder')
-        print('Input: ', curr_latent.shape, x_data_latent.shape)
         x_out = self._run_mapper(
             self.decoder,
             (curr_latent, x_data_latent),
@@ -554,8 +524,6 @@ class AnemoiModelEncProcDecHierachical(AnemoiModelEncProcDec):
             shard_shapes=(shard_shapes_hiddens[-1], shard_shapes_data),
             model_comm_group=model_comm_group,
         )
-        print('Output: ', x_out.shape)
-
 
         x_out = (
             einops.rearrange(
