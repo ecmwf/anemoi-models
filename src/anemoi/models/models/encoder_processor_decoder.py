@@ -70,7 +70,15 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self.num_channels = config.model.num_channels
 
-        self.layer_kernels = config.model.layer_kernels
+
+        #If self.layer_kernels entry is missing from the config, use torch.nn by default
+        try:
+            self.layer_kernels = config.model.layer_kernels 
+        except AttributeError:
+            LOGGER.info(f"No entry found for config.model.layer_kernels. Defaulting to torch.nn implementations")
+            self.layer_kernels=DotDict()
+            self.layer_kernels["Linear"] = DotDict({"_target_": f"torch.nn.Linear", "_partial_": True})
+            self.layer_kernels["LayerNorm"] = DotDict({"_target_": f"torch.nn.LayerNorm", "_partial_": True})
 
         # try loading each of the requested kernels
         # If a given kernel isnt availible, fallback to the torch.NN implementation of the same name
