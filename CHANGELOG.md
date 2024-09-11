@@ -10,7 +10,7 @@ Keep it human-readable, your future self will thank you!
 
 ## [Unreleased](https://github.com/ecmwf/anemoi-models/compare/0.3.0...HEAD)
 
-## [0.3.0 - Remapping of (meteorological) Variables](https://github.com/ecmwf/anemoi-models/compare/0.2.1...0.3.0) - 2024-09-11
+## [0.3.0](https://github.com/ecmwf/anemoi-models/compare/0.2.1...0.3.0) - Remapping of (meteorological) Variables
 
 ### Added
 
