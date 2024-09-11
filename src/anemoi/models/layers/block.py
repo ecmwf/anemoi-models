@@ -66,8 +66,8 @@ class TransformerProcessorBlock(BaseBlock):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        LayerNorm = layer_kernels['LayerNorm']
-        Linear = layer_kernels['Linear']
+        LayerNorm = layer_kernels["LayerNorm"]
+        Linear = layer_kernels["Linear"]
 
         self.layer_norm1 = LayerNorm(num_channels)
 
@@ -332,8 +332,8 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear = layer_kernels['Linear']
-        LayerNorm = layer_kernels['LayerNorm']
+        Linear = layer_kernels["Linear"]
+        LayerNorm = layer_kernels["LayerNorm"]
 
         self.lin_key = Linear(in_channels, num_heads * self.out_channels_conv)
         self.lin_query = Linear(in_channels, num_heads * self.out_channels_conv)
@@ -485,7 +485,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        LayerNorm = layer_kernels['LayerNorm']
+        LayerNorm = layer_kernels["LayerNorm"]
 
         self.layer_norm2 = LayerNorm(in_channels)
 
