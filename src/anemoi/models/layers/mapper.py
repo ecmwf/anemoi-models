@@ -227,7 +227,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             layer_kernels=layer_kernels,
         )
 
-        #Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         Linear = layer_kernels["Linear"]
 
