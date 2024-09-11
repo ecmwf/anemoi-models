@@ -64,6 +64,8 @@ class TransformerProcessorBlock(BaseBlock):
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
+        # Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         LayerNorm=layer_kernels['LayerNorm']
         Linear=layer_kernels['Linear']
 
@@ -328,6 +330,8 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         self.num_chunks = num_chunks
 
+        # Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         Linear=layer_kernels['Linear']
         LayerNorm=layer_kernels['LayerNorm']
 
@@ -478,6 +482,9 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             layer_kernels=layer_kernels,
             **kwargs,
         )
+
+        # Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         LayerNorm=layer_kernels['LayerNorm']
 
         self.layer_norm2 = LayerNorm(in_channels)

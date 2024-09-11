@@ -72,9 +72,8 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self.layer_kernels=config.model.layer_kernels
 
-        #try loading each of the requested kernels
+        #try loading each of the requested kernels, as specified in config.model.layer_kernels
         #If a given kernel isnt availible, fallback to the torch.NN implementation of the same name
-        #TODO I would prefer to come up with a way for hydra to loop over options to instiate, rather then having to catch errors like this
 
         for kernel in self.layer_kernels:
             kernel_entry=self.layer_kernels[kernel]

@@ -227,6 +227,8 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             layer_kernels=layer_kernels,
         )
 
+        #Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         Linear = layer_kernels["Linear"]
 
         self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
@@ -342,6 +344,8 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
             layer_kernels=layer_kernels,
         )
 
+        # Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         Linear=layer_kernels["Linear"]
 
         self.emb_nodes_src = Linear(self.in_channels_src, self.hidden_dim)
@@ -421,6 +425,8 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
             layer_kernels=layer_kernels,
         )
 
+        # Uses the implementation defined in config.model.layer_kernels.<kernel>
+        # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
         Linear=layer_kernels['Linear']
         LayerNorm=layer_kernels['LayerNorm']
 
