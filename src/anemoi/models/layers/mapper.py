@@ -30,6 +30,7 @@ from anemoi.models.layers.block import GraphConvMapperBlock
 from anemoi.models.layers.block import GraphTransformerMapperBlock
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.mlp import MLP
+from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -189,7 +190,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> None:
         """Initialize GraphTransformerBaseMapper.
 
@@ -213,7 +214,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
@@ -229,7 +230,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear = layer_kernels["Linear"]
+        Linear = layer_kernels.get("Linear", torch.nn.Linear)
 
         self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
 
@@ -299,7 +300,7 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> None:
         """Initialize GraphTransformerForwardMapper.
 
@@ -323,7 +324,7 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
@@ -346,7 +347,7 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear = layer_kernels["Linear"]
+        Linear = layer_kernels.get("Linear", torch.nn.Linear)
 
         self.emb_nodes_src = Linear(self.in_channels_src, self.hidden_dim)
 
@@ -380,7 +381,7 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> None:
         """Initialize GraphTransformerBackwardMapper.
 
@@ -404,7 +405,7 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
@@ -427,8 +428,8 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear = layer_kernels["Linear"]
-        LayerNorm = layer_kernels["LayerNorm"]
+        Linear = layer_kernels.get("Linear", torch.nn.Linear)
+        LayerNorm = layer_kernels.get("LayerNorm", torch.nn.LayerNorm)
 
         self.node_data_extractor = nn.Sequential(
             LayerNorm(self.hidden_dim), Linear(self.hidden_dim, self.out_channels_dst)
@@ -461,7 +462,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> None:
         """Initialize GNNBaseMapper.
 
@@ -485,7 +486,7 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
@@ -570,7 +571,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> None:
         """Initialize GNNForwardMapper.
 
@@ -594,7 +595,7 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(
@@ -663,7 +664,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
         sub_graph_edge_attributes: Optional[list[str]] = None,
         src_grid_size: int = 0,
         dst_grid_size: int = 0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> None:
         """Initialize GNNBackwardMapper.
 
@@ -687,7 +688,7 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
             Whether to offload processing to CPU, by default False
         out_channels_dst : Optional[int], optional
             Output channels of the destination node, by default None
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         """
         super().__init__(

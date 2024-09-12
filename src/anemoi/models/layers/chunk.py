@@ -23,6 +23,7 @@ from anemoi.models.layers.block import GraphConvProcessorBlock
 from anemoi.models.layers.block import GraphTransformerProcessorBlock
 from anemoi.models.layers.block import TransformerProcessorBlock
 from anemoi.models.layers.mlp import MLP
+from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         num_channels: int,
         num_layers: int,
         window_size: int,
-        layer_kernels: any,
+        layer_kernels: DotDict,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -83,7 +84,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Number of channels
         num_layers : int
             Number of layers
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         num_heads: int
             Number of heads to use, default 16

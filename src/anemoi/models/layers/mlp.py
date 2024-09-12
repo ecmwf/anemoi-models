@@ -12,8 +12,8 @@ import logging
 import torch
 from torch import nn
 
-from anemoi.models.layers.utils import AutocastLayerNorm
 from anemoi.models.layers.utils import CheckpointWrapper
+from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class MLP(nn.Module):
         final_activation: bool = False,
         layer_norm: bool = True,
         checkpoints: bool = False,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ) -> nn.Module:
         """Generate a multi-layer perceptron.
 
@@ -53,7 +53,7 @@ class MLP(nn.Module):
             Whether to apply layer norm after activation, by default True
         checkpoints : bool, optional
             Whether to provide checkpoints, by default False
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
 
         Returns
@@ -70,8 +70,8 @@ class MLP(nn.Module):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear = layer_kernels["Linear"]
-        LayerNorm = layer_kernels["LayerNorm"]
+        Linear = layer_kernels.get("Linear", torch.nn.Linear)
+        LayerNorm = layer_kernels.get("LayerNorm", torch.nn.LayerNorm)
 
         try:
             act_func = getattr(nn, activation)
@@ -89,8 +89,7 @@ class MLP(nn.Module):
             mlp1.append(act_func())
 
         if layer_norm:
-            mlp1.append(AutocastLayerNorm(out_features))
-            # mlp1.append(LayerNorm(out_features).as_type(out_features))
+            mlp1.append(LayerNorm(out_features).as_type(out_features))
 
         self.model = CheckpointWrapper(mlp1) if checkpoints else mlp1
 

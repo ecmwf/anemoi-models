@@ -26,6 +26,7 @@ from anemoi.models.layers.chunk import GraphTransformerProcessorChunk
 from anemoi.models.layers.chunk import TransformerProcessorChunk
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.mapper import GraphEdgeMixin
+from anemoi.utils.config import DotDict
 
 
 class BaseProcessor(nn.Module, ABC):
@@ -87,7 +88,7 @@ class TransformerProcessor(BaseProcessor):
     def __init__(
         self,
         num_layers: int,
-        layer_kernels: any,
+        layer_kernels: DotDict,
         *args,
         window_size: Optional[int] = None,
         num_channels: int = 128,
@@ -104,7 +105,7 @@ class TransformerProcessor(BaseProcessor):
         ----------
         num_layers : int
             Number of num_layers
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         window_size: int,
             1/2 size of shifted window for attention computation

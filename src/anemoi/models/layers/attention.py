@@ -26,6 +26,7 @@ else:
 
 from anemoi.models.distributed.transformer import shard_heads
 from anemoi.models.distributed.transformer import shard_sequence
+from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout: float = 0.0,
-        layer_kernels: any = None,
+        layer_kernels: DotDict = None,
     ):
         super().__init__()
 
@@ -55,7 +56,8 @@ class MultiHeadSelfAttention(nn.Module):
         self.head_dim = embed_dim // num_heads  # q k v
         self.window_size = (window_size, window_size)  # flash attention
         self.is_causal = is_causal
-        Linear = layer_kernels["Linear"]
+        Linear = layer_kernels.get("Linear", nn.Linear)
+        LayerNorm = layer_kernels.get("LayerNorm", nn.LayerNorm)
 
         self.lin_qkv = Linear(embed_dim, 3 * embed_dim, bias=bias)
         self.attention = attn_func

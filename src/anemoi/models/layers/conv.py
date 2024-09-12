@@ -21,6 +21,7 @@ from torch_geometric.utils import scatter
 from torch_geometric.utils import softmax
 
 from anemoi.models.layers.mlp import MLP
+from anemoi.utils.config import DotDict
 
 
 class GraphConv(MessagePassing):
@@ -30,7 +31,7 @@ class GraphConv(MessagePassing):
         self,
         in_channels: int,
         out_channels: int,
-        layer_kernels: any,
+        layer_kernels: DotDict,
         mlp_extra_layers: int = 0,
         activation: str = "SiLU",
         **kwargs,
@@ -43,7 +44,7 @@ class GraphConv(MessagePassing):
             Number of input channels.
         out_channels : int
             Number of output channels.
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         mlp_extra_layers : int, optional
             Extra layers in MLP, by default 0

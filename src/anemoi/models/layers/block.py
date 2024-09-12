@@ -29,6 +29,7 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
 from anemoi.models.layers.conv import GraphConv
 from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
+from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -66,8 +67,8 @@ class TransformerProcessorBlock(BaseBlock):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        LayerNorm = layer_kernels["LayerNorm"]
-        Linear = layer_kernels["Linear"]
+        Linear = layer_kernels.get("Linear", torch.nn.Linear)
+        LayerNorm = layer_kernels.get("LayerNorm", torch.nn.LayerNorm)
 
         self.layer_norm1 = LayerNorm(num_channels)
 
@@ -292,7 +293,7 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
         hidden_dim: int,
         out_channels: int,
         edge_dim: int,
-        layer_kernels: any,
+        layer_kernels: DotDict,
         num_heads: int = 16,
         bias: bool = True,
         activation: str = "GELU",
@@ -310,7 +311,7 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
             Number of output channels.
         edge_dim : int,
             Edge dimension
-        layer_kernels : any,
+        layer_kernels : DotDict,
             A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         num_heads : int,
             Number of heads
@@ -332,8 +333,8 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        Linear = layer_kernels["Linear"]
-        LayerNorm = layer_kernels["LayerNorm"]
+        Linear = layer_kernels.get("Linear", torch.nn.Linear)
+        LayerNorm = layer_kernels.get("LayerNorm", torch.nn.LayerNorm)
 
         self.lin_key = Linear(in_channels, num_heads * self.out_channels_conv)
         self.lin_query = Linear(in_channels, num_heads * self.out_channels_conv)
@@ -485,7 +486,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
 
         # Uses the implementation defined in config.model.layer_kernels.<kernel>
         # (unless it is not availible, in which case it will fall back to torch.nn.<kernel>)
-        LayerNorm = layer_kernels["LayerNorm"]
+        LayerNorm = layer_kernels.get("LayerNorm", torch.nn.LayerNorm)
 
         self.layer_norm2 = LayerNorm(in_channels)
 
