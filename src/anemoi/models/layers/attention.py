@@ -24,9 +24,10 @@ except ImportError:
 else:
     _FLASH_ATTENTION_AVAILABLE = True
 
+from anemoi.utils.config import DotDict
+
 from anemoi.models.distributed.transformer import shard_heads
 from anemoi.models.distributed.transformer import shard_sequence
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 

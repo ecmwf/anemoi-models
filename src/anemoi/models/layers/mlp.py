@@ -10,10 +10,10 @@
 import logging
 
 import torch
+from anemoi.utils.config import DotDict
 from torch import nn
 
 from anemoi.models.layers.utils import CheckpointWrapper
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 

@@ -10,6 +10,7 @@
 from typing import Optional
 
 import torch
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch.nn.functional import dropout
 from torch_geometric.nn.conv import MessagePassing
@@ -21,7 +22,6 @@ from torch_geometric.utils import scatter
 from torch_geometric.utils import softmax
 
 from anemoi.models.layers.mlp import MLP
-from anemoi.utils.config import DotDict
 
 
 class GraphConv(MessagePassing):

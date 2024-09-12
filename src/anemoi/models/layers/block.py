@@ -14,6 +14,7 @@ from typing import Optional
 
 import einops
 import torch
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -29,7 +30,6 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
 from anemoi.models.layers.conv import GraphConv
 from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 

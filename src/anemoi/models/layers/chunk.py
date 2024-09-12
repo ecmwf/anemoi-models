@@ -12,6 +12,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Optional
 
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -23,7 +24,6 @@ from anemoi.models.layers.block import GraphConvProcessorBlock
 from anemoi.models.layers.block import GraphTransformerProcessorBlock
 from anemoi.models.layers.block import TransformerProcessorBlock
 from anemoi.models.layers.mlp import MLP
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 

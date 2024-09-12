@@ -10,6 +10,7 @@
 from abc import ABC
 from typing import Optional
 
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
@@ -26,7 +27,6 @@ from anemoi.models.layers.chunk import GraphTransformerProcessorChunk
 from anemoi.models.layers.chunk import TransformerProcessorChunk
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.mapper import GraphEdgeMixin
-from anemoi.utils.config import DotDict
 
 
 class BaseProcessor(nn.Module, ABC):
