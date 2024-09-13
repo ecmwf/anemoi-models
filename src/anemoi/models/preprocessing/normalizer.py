@@ -35,7 +35,7 @@ class InputNormalizer(BasePreprocessor):
         ----------
         config : DotDict
             configuration object of the processor
-        data_indices : dict
+        data_indices : IndexCollection
             Data indices for input and output variables
         statistics : dict
             Data statistics dictionary

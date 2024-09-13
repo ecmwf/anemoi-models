@@ -34,7 +34,7 @@ class BaseImputer(BasePreprocessor, ABC):
         ----------
         config : DotDict
             configuration object of the processor
-        data_indices : dict
+        data_indices : IndexCollection
             Data indices for input and output variables
         statistics : dict
             Data statistics dictionary
@@ -177,7 +177,7 @@ class InputImputer(BaseImputer):
     def __init__(
         self,
         config=None,
-        data_indices: Optional[dict] = None,
+        data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
@@ -264,7 +264,10 @@ class ConstantImputer(BaseImputer):
     """
 
     def __init__(
-        self, config=None, data_indices: Optional[IndexCollection] = None, statistics: Optional[dict] = None
+        self,
+        config=None,
+        data_indices: Optional[IndexCollection] = None,
+        statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
 
