@@ -207,7 +207,7 @@ class ConstantAdditionalNaNImputer(BaseImputer):
     def __init__(
         self,
         config=None,
-        data_indices: Optional[dict] = None,
+        data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
