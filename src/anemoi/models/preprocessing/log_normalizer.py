@@ -56,15 +56,17 @@ class InputLogNormalizer(BasePreprocessor):
 
         self._validate_normalization_inputs(name_to_index_training_input,)
 
-        sd_cap = 1.0
-        self.norm = {"log": lambda x: torch.log(x + 1),
-                     "log-piecewise": lambda x: torch.where(x <= sd_cap, 
-                                         x / sd_cap, 
-                                         1 + torch.log10(x - sd_cap + 1)),}
-        self.norm_inverse = {"log": lambda x: torch.exp(x) - 1,
-                             "log-piecewise": lambda x: torch.where(x <= 1,
-                                         x * sd_cap,
-                                         10**(x - 1) + sd_cap - 1),}
+        self.norm = {"log": self.log_transform,
+                     "log10-piecewise": self.log10_piecewise_transform,
+                     "log-piecewise": self.log_piecewise_transform,
+                     "snow-transform": self.snow_transform,}
+        
+        # self.sd_cap = 0.9
+        # self.sd_cap = 0.5
+        # self.mask_locations = None
+        # sd_max = self.log_piecewise_transform(torch.Tensor([10.]), self.sd_cap)
+        sd_max = self.log_transform(torch.Tensor([10.*1000]))
+        self.register_buffer("sd_max", sd_max, persistent=True)
 
     def _validate_normalization_inputs(self, name_to_index_training_input: dict):
         assert len(self.methods) == sum(len(v) for v in self.method_config.values()), (
@@ -77,8 +79,106 @@ class InputLogNormalizer(BasePreprocessor):
             assert name in name_to_index_training_input, f"{name} is not a valid variable name"
             assert method in [
                 "log",
+                "log10-piecewise",
                 "log-piecewise",
+                "snow-transform",
             ], f"{method} is not a valid normalisation method"
+
+    def log_transform(self, x: torch.Tensor, inverse: bool = False) -> torch.Tensor:
+        """Apply log transformation to input tensor x.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor
+        inverse : bool, optional
+            Inverse transformation, by default False
+
+        Returns
+        -------
+        torch.Tensor
+            Transformed tensor
+        """
+        if inverse:
+            return torch.expm1(x)
+        return torch.log1p(x)
+    
+    def log10_piecewise_transform(self, x: torch.Tensor, x_cap: float = 0.9, inverse: bool = False) -> torch.Tensor:
+        """Apply piecewise log transformation to input tensor x.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor
+        inverse : bool, optional
+            Inverse transformation, by default False
+
+        Returns
+        -------
+        torch.Tensor
+            Transformed tensor
+        """
+        # sd_cap = 0.2
+        if inverse:
+            return torch.where(x <= 1, x * x_cap, 10**(x - 1) + x_cap - 1)
+        return torch.where(x <= x_cap, x / x_cap, 1 + torch.log10(x - x_cap + 1))
+    
+    def log_piecewise_transform(self, x: torch.Tensor, x_cap: float = 0.9, inverse: bool = False) -> torch.Tensor:
+        """Apply piecewise log transformation to input tensor x.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor
+        inverse : bool, optional
+            Inverse transformation, by default False
+
+        Returns
+        -------
+        torch.Tensor
+            Transformed tensor
+        """
+        # sd_cap = 0.2
+        if inverse:
+            return torch.where(x <= 1, x * x_cap, torch.expm1(x - 1) + x_cap)
+        return torch.where(x <= x_cap, x / x_cap, 1 + torch.log1p(x - x_cap))
+    
+    # def snow_transform(self, x: torch.Tensor, inverse: bool = False) -> torch.Tensor: 
+    #     if inverse:
+    #         x = x * self.sd_max
+    #         x = torch.where(x <= -1.0, self.sd_max, x)
+    #         x = self.log_piecewise_transform(x, self.sd_cap, inverse=True)
+    #         return torch.clip(x, 0.0, 10.0)
+    #     x = self.log_piecewise_transform(x, self.sd_cap)
+    #     x = torch.where(x >= self.sd_max, -1.0, x)
+    #     return x / self.sd_max
+    # def snow_transform(self, x: torch.Tensor, inverse: bool = False) -> torch.Tensor: 
+    #     if inverse:
+    #         x = x * self.sd_max
+    #         x = self.log_piecewise_transform(x, self.sd_cap, inverse=True)
+    #         # x = torch.clip(x, 0., 10.)
+    #         return x
+    #     x = self.log_piecewise_transform(x, self.sd_cap)
+    #     return x / self.sd_max
+    # def snow_transform(self, x: torch.Tensor, inverse: bool = False) -> torch.Tensor: 
+    #     LOGGER.debug(f"transform: x shape {x.shape}, {torch.argwhere(x==10.0).shape}")
+    #     if inverse:
+    #         x = 10**(x - 1)
+    #         x[self.mask_locations] = 10.0
+    #         return x
+    #     mask_locations = torch.argwhere(x==10.0)
+    #     self.register_buffer("mask_locations", mask_locations, persistent=True)
+    #     #idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
+    #     #self.mask_locations = torch.where(x[idx].squeeze() >= 10.0)
+    #     x[self.mask_locations] = 0.0
+    #     return torch.log10(x + 1.0)
+    def snow_transform(self, x: torch.Tensor, inverse: bool = False) -> torch.Tensor: 
+        if inverse:
+            x = x * self.sd_max
+            x = self.log_transform(x, inverse=True)/1000.
+            return x
+        x = self.log_transform(x*1000.)
+        return x / self.sd_max
 
     def transform(
         self, x: torch.Tensor, in_place: bool = True,
@@ -125,7 +225,7 @@ class InputLogNormalizer(BasePreprocessor):
         return x
 
     def inverse_transform(
-        self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, in_place: bool = True,
     ) -> torch.Tensor:
         """Denormalizes an input tensor x of shape [..., nvars | nvars_pred].
 
@@ -164,7 +264,7 @@ class InputLogNormalizer(BasePreprocessor):
 
         for method in self.method_config.keys():
             for variable in self.method_config[method]:
-                x[..., index[variable]] = self.norm_inverse[method](
-                    x[..., index[variable]]
+                x[..., index[variable]] = self.norm[method](
+                    x[..., index[variable]], inverse=True
                 )
         return x

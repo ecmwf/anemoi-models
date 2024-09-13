@@ -22,7 +22,7 @@ def input_log_normalizer():
         {
             "diagnostics": {"log": {"code": {"level": "DEBUG"}}},
             "data": {
-                "log_normalizer": {"log": ["x"], "log-piecewise": ["other"]},
+                "log_normalizer": {"log": ["x"], "log10-piecewise": ["other"]},
                 #"log_normalizer": {"log": ["x"],},
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
