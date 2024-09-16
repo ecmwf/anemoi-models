@@ -74,7 +74,10 @@ class AnemoiModelInterface(torch.nn.Module):
 
         # Instantiate the model
         self.model = instantiate(
-            self.config.model.model, config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
+            self.config.model.model,
+            model_config=self.config,
+            data_indices=self.data_indices,
+            graph_data=self.graph_data,
         )
 
         # Use the forward method of the model directly
