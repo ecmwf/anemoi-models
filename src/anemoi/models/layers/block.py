@@ -464,7 +464,6 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
         )
 
         self.layer_norm2 = nn.LayerNorm(in_channels)
-        # self.cache = {"num_nodes": None, "num_edges": None, "batch_size": None, "chunks": None}
 
     def forward(
         self,

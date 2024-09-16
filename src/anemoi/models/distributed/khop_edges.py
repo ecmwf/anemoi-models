@@ -46,7 +46,7 @@ def get_k_hop_edges(nodes: Tensor, edge_attr: Tensor, edge_index: Adj, num_hops:
     return edge_attr[mask_to_index(edge_mask_k)], edge_index_k
 
 
-def sort_edges_1hop(
+def sort_edges_1hop_sharding(
     num_nodes: Union[int, tuple[int, int]],
     edge_attr: Tensor,
     edge_index: Adj,
