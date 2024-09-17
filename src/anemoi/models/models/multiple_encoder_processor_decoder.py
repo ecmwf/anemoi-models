@@ -57,9 +57,9 @@ class AnemoiModelMultEncProcDec(nn.Module):
         super().__init__()
 
         self._graph_data = graph_data
+        self._graph_name_hidden = config.graph.hidden
         self._graph_name_input_data = [config.graph.data]
         self._graph_name_output_data = [config.graph.data]
-        self._graph_name_hidden = config.graph.hidden
         self._all_graph_data = list(set(self._graph_name_input_data) | set(self._graph_name_output_data))
         self._all_graph_data.append(self._graph_name_hidden)
 
@@ -72,8 +72,8 @@ class AnemoiModelMultEncProcDec(nn.Module):
         for nodes_name in self._all_graph_data:
             self._register_latlon(nodes_name, nodes_name)
 
-        num_nodes = {name: self._graph_data[name].num_nodes for name in self._graph_mesh_names}
-        num_node_features = {name: 2 * self._graph_data[name]["x"].shape[1] for name in self._graph_mesh_names}
+        num_nodes = {name: self._graph_data[name].num_nodes for name in self._all_graph_data}
+        num_node_features = {name: 2 * self._graph_data[name]["x"].shape[1] for name in self._all_graph_data}
 
         self.num_channels = config.model.num_channels
 
@@ -208,7 +208,7 @@ class AnemoiModelMultEncProcDec(nn.Module):
 
         # get shard shapes
         shard_shapes_data = {}
-        for in_data in self._graph_input_meshes:
+        for in_data in self._graph_name_input_data:
             shard_shapes_data[in_data] = get_shape_shards(x_data_latent[in_data], 0, model_comm_group)
         shard_shapes_hidden = get_shape_shards(x_hidden_latent, 0, model_comm_group)
 
