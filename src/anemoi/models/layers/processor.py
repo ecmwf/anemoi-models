@@ -10,6 +10,7 @@
 from abc import ABC
 from typing import Optional
 
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
@@ -87,6 +88,7 @@ class TransformerProcessor(BaseProcessor):
     def __init__(
         self,
         num_layers: int,
+        layer_kernels: DotDict,
         *args,
         window_size: Optional[int] = None,
         num_channels: int = 128,
@@ -103,6 +105,8 @@ class TransformerProcessor(BaseProcessor):
         ----------
         num_layers : int
             Number of num_layers
+        layer_kernels : DotDict,
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "Module.submodule.Linear". Defined in config/models/<model>.yaml
         window_size: int,
             1/2 size of shifted window for attention computation
         num_channels : int
@@ -117,6 +121,7 @@ class TransformerProcessor(BaseProcessor):
         super().__init__(
             num_channels=num_channels,
             num_layers=num_layers,
+            layer_kernels=layer_kernels,
             window_size=window_size,
             num_chunks=num_chunks,
             activation=activation,
@@ -133,6 +138,7 @@ class TransformerProcessor(BaseProcessor):
             num_layers=self.chunk_size,
             window_size=window_size,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
         self.offload_layers(cpu_offload)

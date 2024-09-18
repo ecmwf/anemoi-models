@@ -13,6 +13,7 @@ from typing import Optional
 import einops
 import torch
 from anemoi.utils.config import DotDict
+from hydra.errors import InstantiationException
 from hydra.utils import instantiate
 from torch import Tensor
 from torch import nn
@@ -69,6 +70,9 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self.num_channels = config.model.num_channels
 
+        # read config.model.layer_kernels to get the implementation for certain layers
+        self._load_layer_kernels(config)
+
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
         # Encoder data -> hidden
@@ -80,6 +84,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_name_hidden)],
             src_grid_size=self._data_grid_size,
             dst_grid_size=self._hidden_grid_size,
+            layer_kernels=self.layer_kernels,
         )
 
         # Processor hidden -> hidden
@@ -89,6 +94,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._hidden_grid_size,
+            layer_kernels=self.layer_kernels,
         )
 
         # Decoder hidden -> data
@@ -101,6 +107,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_data)],
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._data_grid_size,
+            layer_kernels=self.layer_kernels,
         )
 
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
@@ -128,6 +135,37 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self.trainable_data_size = config.model.trainable_parameters.data
         self.trainable_hidden_size = config.model.trainable_parameters.hidden
+
+    # Reads config.model.layer_kernels to get the implementation for certain layers
+    # Currently supports Linear and LayerNorm layers, but this can be extended
+    # Hydra is used to handle the instansiating and importing of libraries
+    def _load_layer_kernels(self, config: DotDict) -> None:
+
+        # If self.layer_kernels entry is missing from the config, use torch.nn by default
+        try:
+            self.layer_kernels = config.model.layer_kernels
+        except AttributeError:
+            LOGGER.info("No entry found for config.model.layer_kernels. Defaulting to torch.nn implementations")
+            self.layer_kernels = DotDict()
+            return
+            # self.layer_kernels = DotDict()
+            # self.layer_kernels["Linear"] = DotDict({"_target_": "torch.nn.Linear", "_partial_": True})
+            # self.layer_kernels["LayerNorm"] = DotDict({"_target_": "torch.nn.LayerNorm", "_partial_": True})
+
+        # try loading each of the requested kernels
+        # If a given kernel isnt available, error out
+
+        for kernel in self.layer_kernels:
+            kernel_entry = self.layer_kernels[kernel]
+            try:
+                instantiate(kernel_entry)
+            except InstantiationException:
+                LOGGER.info(
+                    f"{kernel_entry['_target_']} not available! check your config.model.layer_kernel.{kernel} entry. Maybe your desired kernel is not installed or the import string is incorrect? Otherwise you can fall back to torch.nn.{kernel}"
+                )
+                raise InstantiationException
+
+        LOGGER.debug(f"{self.layer_kernels=}")
 
     def _register_latlon(self, name: str, nodes: str) -> None:
         """Register lat/lon buffers.
