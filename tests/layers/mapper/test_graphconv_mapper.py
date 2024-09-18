@@ -5,6 +5,8 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from dataclasses import dataclass
+
 import pytest
 import torch
 from torch import nn
@@ -13,6 +15,19 @@ from torch_geometric.data import HeteroData
 from anemoi.models.layers.mapper import GNNBackwardMapper
 from anemoi.models.layers.mapper import GNNBaseMapper
 from anemoi.models.layers.mapper import GNNForwardMapper
+
+
+@dataclass
+class MapperConfig:
+    dst_grid_size: int
+    src_grid_size: int
+    in_channels_src: int = 3
+    in_channels_dst: int = 3
+    hidden_dim: int = 256
+    out_channels_dst: int = 5
+    cpu_offload: bool = False
+    activation: str = "SiLU"
+    trainable_size: int = 6
 
 
 class TestGNNBaseMapper:
@@ -24,60 +39,29 @@ class TestGNNBaseMapper:
 
     @pytest.fixture
     def mapper_init(self):
-        in_channels_src: int = 3
-        in_channels_dst: int = 4
-        hidden_dim: int = 256
-        out_channels_dst: int = 8
-        cpu_offload: bool = False
-        activation: str = "SiLU"
-        trainable_size: int = 6
-        return (
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            cpu_offload,
-            activation,
-            trainable_size,
-        )
+        return MapperConfig(src_grid_size=self.NUM_SRC_NODES, dst_grid_size=self.NUM_DST_NODES)
 
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
-        (
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            cpu_offload,
-            activation,
-            trainable_size,
-        ) = mapper_init
         return GNNBaseMapper(
-            in_channels_src=in_channels_src,
-            in_channels_dst=in_channels_dst,
-            hidden_dim=hidden_dim,
-            out_channels_dst=out_channels_dst,
-            cpu_offload=cpu_offload,
-            activation=activation,
+            in_channels_src=mapper_init.in_channels_src,
+            in_channels_dst=mapper_init.in_channels_dst,
+            hidden_dim=mapper_init.hidden_dim,
+            out_channels_dst=mapper_init.out_channels_dst,
+            cpu_offload=mapper_init.cpu_offload,
+            activation=mapper_init.activation,
             sub_graph=fake_graph[("src", "to", "dst")],
             sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
-            trainable_size=trainable_size,
+            trainable_size=mapper_init.trainable_size,
+            src_grid_size=mapper_init.src_grid_size,
+            dst_grid_size=mapper_init.dst_grid_size,
         )
 
     @pytest.fixture
     def pair_tensor(self, mapper_init):
-        (
-            in_channels_src,
-            in_channels_dst,
-            _hidden_dim,
-            _out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
         return (
-            torch.rand(self.NUM_SRC_NODES, in_channels_src),
-            torch.rand(self.NUM_DST_NODES, in_channels_dst),
+            torch.rand(self.NUM_SRC_NODES, mapper_init.in_channels_src),
+            torch.rand(self.NUM_DST_NODES, mapper_init.in_channels_dst),
         )
 
     @pytest.fixture
@@ -96,34 +80,16 @@ class TestGNNBaseMapper:
         return graph
 
     def test_initialization(self, mapper, mapper_init):
-        (
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            _cpu_offload,
-            activation,
-            _trainable_size,
-        ) = mapper_init
         assert isinstance(mapper, GNNBaseMapper)
-        assert mapper.in_channels_src == in_channels_src
-        assert mapper.in_channels_dst == in_channels_dst
-        assert mapper.hidden_dim == hidden_dim
-        assert mapper.out_channels_dst == out_channels_dst
-        assert mapper.activation == activation
+        assert mapper.in_channels_src == mapper_init.in_channels_src
+        assert mapper.in_channels_dst == mapper_init.in_channels_dst
+        assert mapper.hidden_dim == mapper_init.hidden_dim
+        assert mapper.out_channels_dst == mapper_init.out_channels_dst
+        assert mapper.activation == mapper_init.activation
 
-    def test_pre_process(self, mapper, mapper_init, pair_tensor):
+    def test_pre_process(self, mapper, pair_tensor):
         # Should be a no-op in the base class
         x = pair_tensor
-        (
-            _in_channels_src,
-            _in_channels_dst,
-            _hidden_dim,
-            _out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
         shard_shapes = [list(x[0].shape)], [list(x[1].shape)]
 
         x_src, x_dst, shapes_src, shapes_dst = mapper.pre_process(x, shard_shapes)
@@ -154,38 +120,23 @@ class TestGNNForwardMapper(TestGNNBaseMapper):
 
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
-        (
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            cpu_offload,
-            activation,
-            trainable_size,
-        ) = mapper_init
         return GNNForwardMapper(
-            in_channels_src=in_channels_src,
-            in_channels_dst=in_channels_dst,
-            hidden_dim=hidden_dim,
-            out_channels_dst=out_channels_dst,
-            cpu_offload=cpu_offload,
-            activation=activation,
+            in_channels_src=mapper_init.in_channels_src,
+            in_channels_dst=mapper_init.in_channels_dst,
+            hidden_dim=mapper_init.hidden_dim,
+            out_channels_dst=mapper_init.out_channels_dst,
+            cpu_offload=mapper_init.cpu_offload,
+            activation=mapper_init.activation,
             sub_graph=fake_graph[("src", "to", "dst")],
             sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
-            trainable_size=trainable_size,
+            trainable_size=mapper_init.trainable_size,
+            src_grid_size=mapper_init.src_grid_size,
+            dst_grid_size=mapper_init.dst_grid_size,
         )
 
     def test_pre_process(self, mapper, mapper_init, pair_tensor):
         x = pair_tensor
-        (
-            _in_channels_src,
-            _in_channels_dst,
-            hidden_dim,
-            _out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
+        hidden_dim = mapper_init.hidden_dim
         shard_shapes = [list(x[0].shape)], [list(x[1].shape)]
 
         x_src, x_dst, shapes_src, shapes_dst = mapper.pre_process(x, shard_shapes)
@@ -201,17 +152,9 @@ class TestGNNForwardMapper(TestGNNBaseMapper):
         assert shapes_dst == [[self.NUM_DST_NODES, hidden_dim]]
 
     def test_forward_backward(self, mapper_init, mapper, pair_tensor):
-        (
-            _in_channels_src,
-            _in_channels_dst,
-            hidden_dim,
-            _out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
         x = pair_tensor
         batch_size = 1
+        hidden_dim = mapper_init.hidden_dim
         shard_shapes = [list(x[0].shape)], [list(x[1].shape)]
 
         x_src, x_dst = mapper.forward(x, batch_size, shard_shapes)
@@ -245,38 +188,25 @@ class TestGNNBackwardMapper(TestGNNBaseMapper):
 
     @pytest.fixture
     def mapper(self, mapper_init, fake_graph):
-        (
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            cpu_offload,
-            activation,
-            trainable_size,
-        ) = mapper_init
         return GNNBackwardMapper(
-            in_channels_src=in_channels_src,
-            in_channels_dst=in_channels_dst,
-            hidden_dim=hidden_dim,
-            out_channels_dst=out_channels_dst,
-            cpu_offload=cpu_offload,
-            activation=activation,
+            in_channels_src=mapper_init.in_channels_src,
+            in_channels_dst=mapper_init.in_channels_dst,
+            hidden_dim=mapper_init.hidden_dim,
+            out_channels_dst=mapper_init.out_channels_dst,
+            cpu_offload=mapper_init.cpu_offload,
+            activation=mapper_init.activation,
             sub_graph=fake_graph[("src", "to", "dst")],
             sub_graph_edge_attributes=["edge_attr1", "edge_attr2"],
-            trainable_size=trainable_size,
+            trainable_size=mapper_init.trainable_size,
+            src_grid_size=mapper_init.src_grid_size,
+            dst_grid_size=mapper_init.dst_grid_size,
         )
 
     def test_pre_process(self, mapper, mapper_init, pair_tensor):
         x = pair_tensor
-        (
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            _out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
+        in_channels_src = mapper_init.in_channels_src
+        in_channels_dst = mapper_init.in_channels_dst
+        hidden_dim = mapper_init.hidden_dim
         shard_shapes = [list(x[0].shape)], [list(x[1].shape)]
 
         x_src, x_dst, shapes_src, shapes_dst = mapper.pre_process(x, shard_shapes)
@@ -292,15 +222,8 @@ class TestGNNBackwardMapper(TestGNNBaseMapper):
         assert shapes_dst == [[self.NUM_DST_NODES, hidden_dim]]
 
     def test_post_process(self, mapper, mapper_init):
-        (
-            _in_channels_src,
-            _in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
+        hidden_dim = mapper_init.hidden_dim
+        out_channels_dst = mapper_init.out_channels_dst
         x_dst = torch.rand(self.NUM_DST_NODES, hidden_dim)
         shapes_dst = [list(x_dst.shape)]
 
@@ -310,15 +233,8 @@ class TestGNNBackwardMapper(TestGNNBaseMapper):
         ), f"[self.NUM_DST_NODES, out_channels_dst] ({[self.NUM_DST_NODES, out_channels_dst]}) != result.shape ({result.shape})"
 
     def test_forward_backward(self, mapper_init, mapper, pair_tensor):
-        (
-            _in_channels_src,
-            _in_channels_dst,
-            hidden_dim,
-            out_channels_dst,
-            _cpu_offload,
-            _activation,
-            _trainable_size,
-        ) = mapper_init
+        hidden_dim = mapper_init.hidden_dim
+        out_channels_dst = mapper_init.out_channels_dst
         pair_tensor
         shard_shapes = [list(pair_tensor[0].shape)], [list(pair_tensor[1].shape)]
         batch_size = 1

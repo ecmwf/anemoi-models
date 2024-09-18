@@ -35,9 +35,9 @@ class BaseProcessor(nn.Module, ABC):
         self,
         num_layers: int,
         *args,
-        num_channels: int = 128,
-        num_chunks: int = 2,
-        activation: str = "GELU",
+        num_channels: int,
+        num_chunks: int,
+        activation: str,
         cpu_offload: bool = False,
         **kwargs,
     ) -> None:
@@ -86,15 +86,15 @@ class TransformerProcessor(BaseProcessor):
 
     def __init__(
         self,
-        num_layers: int,
         *args,
-        window_size: Optional[int] = None,
-        num_channels: int = 128,
-        num_chunks: int = 2,
-        activation: str = "GELU",
+        num_layers: int,
+        num_channels: int,
+        num_chunks: int,
+        num_heads: int,
+        mlp_hidden_ratio: int,
+        activation: str,
         cpu_offload: bool = False,
-        num_heads: int = 16,
-        mlp_hidden_ratio: int = 4,
+        window_size: Optional[int] = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -103,16 +103,20 @@ class TransformerProcessor(BaseProcessor):
         ----------
         num_layers : int
             Number of num_layers
-        window_size: int,
-            1/2 size of shifted window for attention computation
         num_channels : int
             number of channels
-        heads: int
-            Number of heads to use, default 16
+        num_chunks : int
+            Number of chunks
+        num_heads: int
+            Number of heads to use
         mlp_hidden_ratio: int
-            ratio of mlp hidden dimension to embedding dimension, default 4
-        activation : str, optional
-            Activation function, by default "GELU"
+            ratio of mlp hidden dimension to embedding dimension
+        activation : str
+            Activation function
+        cpu_offload : bool
+            Whether to offload processing to CPU
+        window_size: int, optional
+            1/2 size of shifted window for attention computation
         """
         super().__init__(
             num_channels=num_channels,
@@ -162,34 +166,44 @@ class GNNProcessor(GraphEdgeMixin, BaseProcessor):
 
     def __init__(
         self,
-        num_layers: int,
         *args,
-        trainable_size: int = 8,
-        num_channels: int = 128,
-        num_chunks: int = 2,
+        num_layers: int,
+        num_channels: int,
+        num_chunks: int,
+        trainable_size: int,
         mlp_extra_layers: int = 0,
-        activation: str = "SiLU",
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
         cpu_offload: bool = False,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
         **kwargs,
     ) -> None:
         """Initialize GNNProcessor.
 
         Parameters
         ----------
-        num_channels : int
-            Number of Channels
         num_layers : int
             Number of layers
-        num_chunks : int, optional
-            Number of num_chunks, by default 2
+        num_channels : int
+            Number of Channels
+        num_chunks : int
+            Number of num_chunks
+        trainable_size : int
+            Size of trainable tensor
         mlp_extra_layers : int, optional
             Number of extra layers in MLP, by default 0
-        activation : str, optional
-            Activation function, by default "SiLU"
+        activation : str
+            Activation function
+        sub_graph : HeteroData
+            Sub graph passed in from model
+        sub_graph_edge_attributes : list[str]
+            List of edge attributes
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
         """
@@ -250,18 +264,19 @@ class GraphTransformerProcessor(GraphEdgeMixin, BaseProcessor):
 
     def __init__(
         self,
+        *args,
         num_layers: int,
-        trainable_size: int = 8,
-        num_channels: int = 128,
-        num_chunks: int = 2,
-        num_heads: int = 16,
-        mlp_hidden_ratio: int = 4,
-        activation: str = "GELU",
+        num_channels: int,
+        num_chunks: int,
+        num_heads: int,
+        trainable_size: int,
+        mlp_hidden_ratio: int,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
         cpu_offload: bool = False,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
         **kwargs,
     ) -> None:
         """Initialize GraphTransformerProcessor.
@@ -273,13 +288,23 @@ class GraphTransformerProcessor(GraphEdgeMixin, BaseProcessor):
         num_channels : int
             Number of channels
         num_chunks : int, optional
-            Number of num_chunks, by default 2
-        heads: int
-            Number of heads to use, default 16
+            Number of num_chunks
+        num_heads: int
+            Number of heads to use
+        trainable_size : int
+            Size of trainable tensor
         mlp_hidden_ratio: int
-            ratio of mlp hidden dimension to embedding dimension, default 4
-        activation : str, optional
-            Activation function, by default "GELU"
+            ratio of mlp hidden dimension to embedding dimension
+        activation : str
+            Activation function
+        sub_graph : HeteroData
+            Sub graph passed in from model
+        sub_graph_edge_attributes : list[str]
+            List of edge attributes
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
         """

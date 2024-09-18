@@ -39,12 +39,13 @@ class BaseMapper(nn.Module, ABC):
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        activation: str,
         cpu_offload: bool = False,
-        activation: str = "SiLU",
         **kwargs,
     ) -> None:
         """Initialize BaseMapper."""
@@ -175,20 +176,21 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        trainable_size: int = 8,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        trainable_size: int = 0,
         num_chunks: int = 1,
+        num_heads: int,
+        mlp_hidden_ratio: int,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
         cpu_offload: bool = False,
-        activation: str = "GELU",
-        num_heads: int = 16,
-        mlp_hidden_ratio: int = 4,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
     ) -> None:
         """Initialize GraphTransformerBaseMapper.
 
@@ -200,23 +202,33 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             Input channels of the destination node
         hidden_dim : int
             Hidden dimension
+        out_channels_dst : int
+            Output channels of the destination node
         trainable_size : int
             Trainable tensor of edge
+        num_chunks: int, optional
+            Message passing in chunks, by default 1
         num_heads: int
-            Number of heads to use, default 16
+            Number of heads to use
         mlp_hidden_ratio: int
-            ratio of mlp hidden dimension to embedding dimension, default 4
-        activation : str, optional
-            Activation function, by default "GELU"
+            Ratio of mlp hidden dimension to embedding dimension
+        activation : str
+            Activation function
+        sub_graph : HeteroData
+            Sub graph of the full structure
+        sub_graph_edge_attributes : list[str]
+            Edge attributes to use
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
-        out_channels_dst : Optional[int], optional
-            Output channels of the destination node, by default None
         """
         super().__init__(
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
+            in_channels_src=in_channels_src,
+            in_channels_dst=in_channels_dst,
+            hidden_dim=hidden_dim,
             out_channels_dst=out_channels_dst,
             num_chunks=num_chunks,
             cpu_offload=cpu_offload,
@@ -228,9 +240,9 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
         self.trainable = TrainableTensor(trainable_size=trainable_size, tensor_size=self.edge_attr.shape[0])
 
         self.proc = GraphTransformerMapperBlock(
-            hidden_dim,
-            mlp_hidden_ratio * hidden_dim,
-            hidden_dim,
+            in_channels=hidden_dim,
+            hidden_dim=mlp_hidden_ratio * hidden_dim,
+            out_channels=hidden_dim,
             num_heads=num_heads,
             edge_dim=self.edge_dim,
             activation=activation,
@@ -276,20 +288,21 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        trainable_size: int = 8,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        trainable_size: int = 0,
         num_chunks: int = 1,
+        num_heads: int,
+        mlp_hidden_ratio: int,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
         cpu_offload: bool = False,
-        activation: str = "GELU",
-        num_heads: int = 16,
-        mlp_hidden_ratio: int = 4,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
     ) -> None:
         """Initialize GraphTransformerForwardMapper.
 
@@ -301,24 +314,34 @@ class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransform
             Input channels of the destination node
         hidden_dim : int
             Hidden dimension
+        out_channels_dst : int
+            Output channels of the destination node
         trainable_size : int
             Trainable tensor of edge
+        num_chunks: int, optional
+            Message passing in chunks, by default 1
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
             ratio of mlp hidden dimension to embedding dimension, default 4
         activation : str, optional
             Activation function, by default "GELU"
+        sub_graph : HeteroData
+            Sub graph passed in by the model
+        sub_graph_edge_attributes : list[str]
+            Edge attributes to use
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
-        out_channels_dst : Optional[int], optional
-            Output channels of the destination node, by default None
         """
         super().__init__(
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            trainable_size,
+            in_channels_src=in_channels_src,
+            in_channels_dst=in_channels_dst,
+            hidden_dim=hidden_dim,
+            trainable_size=trainable_size,
             out_channels_dst=out_channels_dst,
             num_chunks=num_chunks,
             cpu_offload=cpu_offload,
@@ -349,20 +372,21 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        trainable_size: int = 8,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        trainable_size: int = 0,
         num_chunks: int = 1,
+        num_heads: int,
+        mlp_hidden_ratio: int,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
         cpu_offload: bool = False,
-        activation: str = "GELU",
-        num_heads: int = 16,
-        mlp_hidden_ratio: int = 4,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
     ) -> None:
         """Initialize GraphTransformerBackwardMapper.
 
@@ -374,24 +398,34 @@ class GraphTransformerBackwardMapper(BackwardMapperPostProcessMixin, GraphTransf
             Input channels of the destination node
         hidden_dim : int
             Hidden dimension
+        out_channels_dst : int
+            Output channels of the destination node
         trainable_size : int
             Trainable tensor of edge
+        num_chunks: int, optional
+            Message passing in chunks, by default 1
         num_heads: int
-            Number of heads to use, default 16
+            Number of heads to use
         mlp_hidden_ratio: int
-            ratio of mlp hidden dimension to embedding dimension, default 4
-        activation : str, optional
-            Activation function, by default "GELU"
+            ratio of mlp hidden dimension to embedding dimension
+        activation : str
+            Activation function
+        sub_graph : HeteroData
+            Sub graph passed in by the model
+        sub_graph_edge_attributes : list[str]
+            Edge attributes to use
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
-        out_channels_dst : Optional[int], optional
-            Output channels of the destination node, by default None
         """
         super().__init__(
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            trainable_size,
+            in_channels_src=in_channels_src,
+            in_channels_dst=in_channels_dst,
+            hidden_dim=hidden_dim,
+            trainable_size=trainable_size,
             out_channels_dst=out_channels_dst,
             num_chunks=num_chunks,
             cpu_offload=cpu_offload,
@@ -422,19 +456,20 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        trainable_size: int = 8,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        trainable_size: int = 0,
         num_chunks: int = 1,
-        cpu_offload: bool = False,
-        activation: str = "SiLU",
         mlp_extra_layers: int = 0,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
+        cpu_offload: bool = False,
     ) -> None:
         """Initialize GNNBaseMapper.
 
@@ -446,23 +481,31 @@ class GNNBaseMapper(GraphEdgeMixin, BaseMapper):
             Input channels of the destination node
         hidden_dim : int
             Hidden dimension
+        out_channels_dst : int
+            Output channels of the destination node
         trainable_size : int
             Trainable tensor of edge
+        num_chunks: int, optional
+            Message passing in chunks, by default 1
         mlp_extra_layers : int, optional
             Number of extra layers in MLP, by default 0
         activation : str, optional
             Activation function, by default "SiLU"
-        num_chunks : int
-            Do message passing in X chunks
+        sub_graph: HeteroData
+            Sub graph passed in by the model
+        sub_graph_edge_attributes : list[str]
+            Edge attributes to use
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
-        out_channels_dst : Optional[int], optional
-            Output channels of the destination node, by default None
         """
         super().__init__(
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
+            in_channels_src=in_channels_src,
+            in_channels_dst=in_channels_dst,
+            hidden_dim=hidden_dim,
             out_channels_dst=out_channels_dst,
             num_chunks=num_chunks,
             cpu_offload=cpu_offload,
@@ -526,19 +569,20 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        trainable_size: int = 8,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        trainable_size: int = 0,
         num_chunks: int = 1,
-        cpu_offload: bool = False,
-        activation: str = "SiLU",
         mlp_extra_layers: int = 0,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
+        cpu_offload: bool = False,
     ) -> None:
         """Initialize GNNForwardMapper.
 
@@ -550,38 +594,46 @@ class GNNForwardMapper(ForwardMapperPreProcessMixin, GNNBaseMapper):
             Input channels of the destination node
         hidden_dim : int
             Hidden dimension
-        edge_dim : int
+        out_channels_dst : int
+            Output channels of the destination node
+        trainable_size : int
             Trainable tensor of edge
-        mlp_extra_layers : int, optional
+        num_chunks : int, optional
+            Do message passing in chunks, by default 1
+        mlp_extra_layers : int
             Number of extra layers in MLP, by default 0
-        activation : str, optional
-            Activation function, by default "SiLU"
-        num_chunks : int
-            Do message passing in X chunks
+        activation : str
+            Activation function
+        sub_graph : HeteroData
+            Sub graph passed in by the model
+        sub_graph_edge_attributes : list[str]
+            Edge attributes to use
+        src_grid_size : int
+            Source grid size
+        dst_grid_size : int
+            Destination grid size
         cpu_offload : bool, optional
             Whether to offload processing to CPU, by default False
-        out_channels_dst : Optional[int], optional
-            Output channels of the destination node, by default None
         """
         super().__init__(
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            trainable_size,
-            out_channels_dst,
-            num_chunks,
-            cpu_offload,
-            activation,
-            mlp_extra_layers,
+            in_channels_src=in_channels_src,
+            in_channels_dst=in_channels_dst,
+            hidden_dim=hidden_dim,
+            out_channels_dst=out_channels_dst,
+            trainable_size=trainable_size,
+            num_chunks=num_chunks,
+            mlp_extra_layers=mlp_extra_layers,
+            activation=activation,
             sub_graph=sub_graph,
             sub_graph_edge_attributes=sub_graph_edge_attributes,
             src_grid_size=src_grid_size,
             dst_grid_size=dst_grid_size,
+            cpu_offload=cpu_offload,
         )
 
         self.proc = GraphConvMapperBlock(
-            hidden_dim,
-            hidden_dim,
+            in_channels=hidden_dim,
+            out_channels=hidden_dim,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
             update_src_nodes=True,
@@ -612,19 +664,20 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
 
     def __init__(
         self,
-        in_channels_src: int = 0,
-        in_channels_dst: int = 0,
-        hidden_dim: int = 128,
-        trainable_size: int = 8,
-        out_channels_dst: Optional[int] = None,
+        *,
+        in_channels_src: int,
+        in_channels_dst: int,
+        hidden_dim: int,
+        out_channels_dst: int,
+        trainable_size: int = 0,
         num_chunks: int = 1,
-        cpu_offload: bool = False,
-        activation: str = "SiLU",
         mlp_extra_layers: int = 0,
-        sub_graph: Optional[HeteroData] = None,
-        sub_graph_edge_attributes: Optional[list[str]] = None,
-        src_grid_size: int = 0,
-        dst_grid_size: int = 0,
+        activation: str,
+        sub_graph: HeteroData,
+        sub_graph_edge_attributes: list[str],
+        src_grid_size: int,
+        dst_grid_size: int,
+        cpu_offload: bool = False,
     ) -> None:
         """Initialize GNNBackwardMapper.
 
@@ -650,10 +703,10 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
             Output channels of the destination node, by default None
         """
         super().__init__(
-            in_channels_src,
-            in_channels_dst,
-            hidden_dim,
-            trainable_size,
+            in_channels_src=in_channels_src,
+            in_channels_dst=in_channels_dst,
+            hidden_dim=hidden_dim,
+            trainable_size=trainable_size,
             out_channels_dst=out_channels_dst,
             num_chunks=num_chunks,
             cpu_offload=cpu_offload,
@@ -666,8 +719,8 @@ class GNNBackwardMapper(BackwardMapperPostProcessMixin, GNNBaseMapper):
         )
 
         self.proc = GraphConvMapperBlock(
-            hidden_dim,
-            hidden_dim,
+            in_channels=hidden_dim,
+            out_channels=hidden_dim,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
             update_src_nodes=False,
