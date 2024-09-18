@@ -50,7 +50,7 @@ dependencies = [
 ]
 optional-dependencies.all = [  ]
 
-optional-dependencies.dev = [ "anemoi-models[docs,tests]" ]
+optional-dependencies.dev = [ "anemoi-models[all,docs,tests]" ]
 
 optional-dependencies.docs = [
   "nbsphinx",
