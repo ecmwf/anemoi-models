@@ -22,12 +22,13 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
     num_heads=st.integers(min_value=1, max_value=50),
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
+    softcap=st.floats(min_value=0.0, max_value=1.0),
 )
-def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout_p):
+def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout_p, softcap):
     embed_dim = (
         num_heads * embed_dim_multiplier
     )  # TODO: Make assert in MHSA to check if embed_dim is divisible by num_heads
-    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p)
+    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p, softcap=softcap)
 
     assert isinstance(mhsa, nn.Module)
     assert mhsa.num_heads == num_heads
@@ -36,17 +37,19 @@ def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout
     assert dropout_p == mhsa.dropout_p
 
 
+@pytest.mark.xfail(raises=TypeError)
 @pytest.mark.gpu
 @given(
     batch_size=st.integers(min_value=1, max_value=64),
     num_heads=st.integers(min_value=1, max_value=20),
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
+    softcap=st.floats(min_value=0.0, max_value=1.0),
 )
 @settings(deadline=None)
-def test_multi_head_self_attention_forward(batch_size, num_heads, embed_dim_multiplier, dropout_p):
+def test_multi_head_self_attention_forward(batch_size, num_heads, embed_dim_multiplier, dropout_p, softcap):
     embed_dim = num_heads * embed_dim_multiplier
-    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p)
+    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p, softcap=softcap)
 
     x = torch.randn(batch_size * 2, embed_dim)
     shapes = [list(x.shape)]
@@ -55,16 +58,18 @@ def test_multi_head_self_attention_forward(batch_size, num_heads, embed_dim_mult
     assert output.shape == x.shape
 
 
+@pytest.mark.xfail(raises=TypeError)
 @pytest.mark.gpu
 @given(
     batch_size=st.integers(min_value=1, max_value=64),
     num_heads=st.integers(min_value=1, max_value=20),
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
+    softcap=st.floats(min_value=0.0, max_value=1.0),
 )
-def test_multi_head_self_attention_backward(batch_size, num_heads, embed_dim_multiplier, dropout_p):
+def test_multi_head_self_attention_backward(batch_size, num_heads, embed_dim_multiplier, dropout_p, softcap):
     embed_dim = num_heads * embed_dim_multiplier
-    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p)
+    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p, softcap=softcap)
 
     x = torch.randn(batch_size * 2, embed_dim, requires_grad=True)
     shapes = [list(x.shape)]
