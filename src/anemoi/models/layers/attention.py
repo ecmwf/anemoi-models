@@ -11,6 +11,7 @@ import logging
 from typing import Optional
 
 import einops
+from flash_attn import flash_attn_func
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -50,15 +51,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
-        self.attention = self.get_attention_function()
 
-    def get_attention_function(self):
-        from torch.nn.functional import scaled_dot_product_attention
-
-        return scaled_dot_product_attention
-
-    def attend(self, query: Tensor, key: Tensor, value: Tensor) -> Tensor:
-        return self.attention(query, key, value, is_causal=False)  # expects (batch heads grid variable) format
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -85,31 +78,16 @@ class MultiHeadSelfAttention(nn.Module):
         value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
         dropout_p = self.dropout_p if self.training else 0.0
 
-        out = self.attend(query, key, value)
+        query, key, value = (
+            einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
+        )
+
+        out = flash_attn_func(query, key, value, dropout_p=dropout_p, causal=False, window_size=self.window_size)
+        out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
 
         out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
         out = einops.rearrange(out, "batch heads grid vars -> (batch grid) (heads vars)")
 
         out = self.projection(out)
-
-        return out
-
-
-class FlashMultiHeadSelfAttention(MultiHeadSelfAttention):
-    """Multi Head Self Attention Pytorch Layer."""
-
-    def get_attention_function(self):
-        from flash_attn import flash_attn_func
-
-        return flash_attn_func
-
-    def attend(self, query: Tensor, key: Tensor, value: Tensor) -> Tensor:
-
-        query, key, value = (
-            einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
-        )
-
-        out = self.attention(query, key, value, causal=False, window_size=self.window_size)
-        out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
 
         return out
