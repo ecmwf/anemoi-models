@@ -53,8 +53,6 @@ class MultiHeadSelfAttention(nn.Module):
 
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
-
-
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
     ) -> Tensor:
