@@ -97,6 +97,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
+        softcap: float = 0.0,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -138,6 +139,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
+            softcap=softcap,
         )
 
         self.offload_layers(cpu_offload)

@@ -34,6 +34,7 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
+        softcap: float = 0.0,
     ):
         super().__init__()
 
@@ -47,6 +48,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.window_size = (window_size, window_size)  # flash attention
         self.dropout_p = dropout_p
         self.is_causal = is_causal
+        self.softcap = softcap
 
         self.lin_qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
 
@@ -83,7 +85,9 @@ class MultiHeadSelfAttention(nn.Module):
             einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
         )
 
-        out = flash_attn_func(query, key, value, dropout_p=dropout_p, causal=False, window_size=self.window_size)
+        out = flash_attn_func(
+            query, key, value, dropout_p=dropout_p, causal=False, window_size=self.window_size, softcap=self.softcap
+        )
         out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
 
         out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
