@@ -63,6 +63,7 @@ class TransformerProcessorBlock(BaseBlock):
         activation: str,
         window_size: int,
         dropout_p: float = 0.0,
+        softcap: float = 0.0,
     ):
         super().__init__()
 
@@ -81,6 +82,7 @@ class TransformerProcessorBlock(BaseBlock):
             bias=False,
             is_causal=False,
             dropout_p=dropout_p,
+            softcap=softcap,
         )
 
         self.mlp = nn.Sequential(
