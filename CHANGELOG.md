@@ -10,6 +10,19 @@ Keep it human-readable, your future self will thank you!
 
 ## [Unreleased](https://github.com/ecmwf/anemoi-models/compare/0.3.0...HEAD)
 
+### Added
+- Codeowners file
+- Pygrep precommit hooks
+- Docsig precommit hooks
+- Changelog merge strategy
+- configurabilty of the dropout probability in the the MultiHeadSelfAttention module
+- Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
+
+### Changed
+- Bugfixes for CI
+
+### Removed
+
 ## [0.3.0](https://github.com/ecmwf/anemoi-models/compare/0.2.1...0.3.0) - Remapping of (meteorological) Variables
 
 ### Added
