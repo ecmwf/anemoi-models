@@ -63,7 +63,7 @@ class BasePreprocessor(nn.Module):
         self.data_indices = data_indices
 
     def _process_config(self, config):
-        _special_keys = ["default", "remap"] # Keys that do not contain a list of variables in a preprocessing method.
+        _special_keys = ["default", "remap"]  # Keys that do not contain a list of variables in a preprocessing method.
         default = config.get("default", "none")
         self.remap = config.get("remap", {})
         method_config = {k: v for k, v in config.items() if k not in _special_keys and v is not None and v != "none"}
