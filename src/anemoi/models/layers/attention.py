@@ -11,7 +11,6 @@ import logging
 from typing import Optional
 
 import einops
-from flash_attn import flash_attn_func
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -40,6 +39,10 @@ class MultiHeadSelfAttention(nn.Module):
         assert (
             embed_dim % num_heads == 0
         ), f"Embedding dimension ({embed_dim}) must be divisible by number of heads ({num_heads})"
+
+        from flash_attn import flash_attn_func
+
+        self.attention = flash_attn_func
 
         self.num_heads = num_heads
         self.embed_dim = embed_dim
@@ -82,7 +85,7 @@ class MultiHeadSelfAttention(nn.Module):
             einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
         )
 
-        out = flash_attn_func(
+        out = self.attention(
             query, key, value, dropout_p=dropout_p, causal=False, window_size=self.window_size, softcap=self.softcap
         )
         out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
