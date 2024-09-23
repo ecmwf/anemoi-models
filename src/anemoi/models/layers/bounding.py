@@ -49,8 +49,8 @@ class BaseBounding(nn.Module, ABC):
 
 
 class ReluBounding(BaseBounding):
-    """Initializes the bounding with a ReLU activation / zero clamping.
-    """
+    """Initializes the bounding with a ReLU activation / zero clamping."""
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index])
         return x
@@ -101,7 +101,9 @@ class FractionBounding(HardtanhBounding):
         example, in the case of convective precipitation (Cp), total_var = Tp (total precipitation).
     """
 
-    def __init__(self, *, variables: list[str], name_to_index: dict, min_val: float, max_val: float, total_var: str) -> None:
+    def __init__(
+        self, *, variables: list[str], name_to_index: dict, min_val: float, max_val: float, total_var: str
+    ) -> None:
         super().__init__(variables=variables, name_to_index=name_to_index, min_val=min_val, max_val=max_val)
         self.total_variable = self._create_index(variables=[total_var])
 
