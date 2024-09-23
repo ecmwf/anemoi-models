@@ -42,6 +42,8 @@ class BaseImputer(BasePreprocessor, ABC):
         super().__init__(config, data_indices, statistics)
 
         self.nan_locations = None
+        # weight imputed values wiht zero in loss calculation
+        self.loss_weights_training = None
 
     def _validate_indices(self):
         assert len(self.index_training_input) == len(self.index_inference_input) <= len(self.replacement), (
@@ -117,6 +119,15 @@ class BaseImputer(BasePreprocessor, ABC):
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
             index = self.index_training_input
+            if self.loss_weights_training is None:
+                self.loss_weights_training = torch.ones(
+                    (x.shape[-2], len(self.data_indices.data.output.name_to_index)), device=x.device
+                )  # shape (grid, n_outputs)
+                # for all variables that are imputed and part of the output, set the loss weight to zero
+                for idx_src, idx_dst in zip(self.index_training_input, self.index_training_output):
+                    if idx_dst is not None:
+                        self.loss_weights_training[:, idx_dst] = (~self.nan_locations[:, idx_src]).int()
+
         elif x.shape[-1] == self.num_inference_input_vars:
             index = self.index_inference_input
         else:
