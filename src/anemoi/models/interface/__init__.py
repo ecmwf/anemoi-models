@@ -60,7 +60,7 @@ class AnemoiModelInterface(torch.nn.Module):
         self.config = config
         self.id = str(uuid.uuid4())
         self.multi_step = self.config.training.multistep_input
-        self.tendency_mode = self.config.training.tendency_mode
+        self.prediction_strategy = self.config.training.prediction_strategy
         self.graph_data = graph_data
         self.statistics = statistics
         self.statistics_tendencies = statistics_tendencies
@@ -83,7 +83,7 @@ class AnemoiModelInterface(torch.nn.Module):
         # Instantiate processors for tendency
         self.pre_processors_tendency = None
         self.post_processors_tendency = None
-        if self.tendency_mode:
+        if self.prediction_strategy == "tendency":
             processors_tendency = [
                 [name, instantiate(processor, statistics=self.statistics_tendencies, data_indices=self.data_indices)]
                 for name, processor in self.config.data.processors.tendency.items()
@@ -98,13 +98,13 @@ class AnemoiModelInterface(torch.nn.Module):
         )
 
     def forward(self, x: torch.Tensor, model_comm_group: Optional[ProcessGroup] = None) -> torch.Tensor:
-        if self.tendency_mode:
-            # Predict tendency
-            x_pred = self.model.forward(x, model_comm_group)
-        else:
+        if self.prediction_strategy == "residual":
             # Predict state by adding residual connection (just for the prognostic variables)
             x_pred = self.model.forward(x, model_comm_group)
             x_pred[..., self.model._internal_output_idx] += x[:, -1, :, :, self.model._internal_input_idx]
+        else:
+            x_pred = self.model.forward(x, model_comm_group)
+
         return x_pred
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
@@ -133,12 +133,12 @@ class AnemoiModelInterface(torch.nn.Module):
             # batch, timesteps, horizontal space, variables
             x = x[..., None, :]  # add dummy ensemble dimension as 3rd index
 
-            if not self.tendency_mode:
-                y_hat = self(x)
-                y_hat = self.post_processors_state(y_hat, in_place=False)
-            else:
+            if self.prediction_strategy == "tendency":
                 tendency_hat = self(x)
                 y_hat = self.add_tendency_to_state(batch[:, self.multi_step, ...], tendency_hat)
+            else:
+                y_hat = self(x)
+                y_hat = self.post_processors_state(y_hat, in_place=False)
 
         return y_hat
 
