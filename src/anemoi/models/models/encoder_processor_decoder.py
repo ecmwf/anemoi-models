@@ -32,7 +32,7 @@ class AnemoiModelEncProcDec(nn.Module):
     def __init__(
         self,
         *,
-        config: DotDict,
+        model_config: DotDict,
         data_indices: dict,
         graph_data: HeteroData,
     ) -> None:
@@ -40,8 +40,8 @@ class AnemoiModelEncProcDec(nn.Module):
 
         Parameters
         ----------
-        config : DotDict
-            Job configuration
+        model_config : DotDict
+            Model configuration
         data_indices : dict
             Data indices
         graph_data : HeteroData
@@ -50,15 +50,15 @@ class AnemoiModelEncProcDec(nn.Module):
         super().__init__()
 
         self._graph_data = graph_data
-        self._graph_name_data = config.graph.data
-        self._graph_name_hidden = config.graph.hidden
+        self._graph_name_data = model_config.graph.data
+        self._graph_name_hidden = model_config.graph.hidden
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
 
-        self.multi_step = config.training.multistep_input
+        self.multi_step = model_config.training.multistep_input
 
-        self._define_tensor_sizes(config)
+        self._define_tensor_sizes(model_config)
 
         # Create trainable tensors
         self._create_trainable_attributes()
@@ -67,13 +67,15 @@ class AnemoiModelEncProcDec(nn.Module):
         self._register_latlon("data", self._graph_name_data)
         self._register_latlon("hidden", self._graph_name_hidden)
 
-        self.num_channels = config.model.num_channels
+        self.data_indices = data_indices
+
+        self.num_channels = model_config.model.num_channels
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
         # Encoder data -> hidden
         self.encoder = instantiate(
-            config.model.encoder,
+            model_config.model.encoder,
             in_channels_src=input_dim,
             in_channels_dst=self.latlons_hidden.shape[1] + self.trainable_hidden_size,
             hidden_dim=self.num_channels,
@@ -84,7 +86,7 @@ class AnemoiModelEncProcDec(nn.Module):
 
         # Processor hidden -> hidden
         self.processor = instantiate(
-            config.model.processor,
+            model_config.model.processor,
             num_channels=self.num_channels,
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
             src_grid_size=self._hidden_grid_size,
@@ -93,7 +95,7 @@ class AnemoiModelEncProcDec(nn.Module):
 
         # Decoder hidden -> data
         self.decoder = instantiate(
-            config.model.decoder,
+            model_config.model.decoder,
             in_channels_src=self.num_channels,
             in_channels_dst=input_dim,
             hidden_dim=self.num_channels,
@@ -103,23 +105,32 @@ class AnemoiModelEncProcDec(nn.Module):
             dst_grid_size=self._data_grid_size,
         )
 
+        # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
+        self.boundings = nn.ModuleList(
+            [
+                instantiate(cfg, name_to_index=self.data_indices.model.output.name_to_index)
+                for cfg in getattr(model_config.model, "bounding", [])
+            ]
+        )
+
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
-        self.num_input_channels = len(data_indices.model.input)
-        self.num_output_channels = len(data_indices.model.output)
-        self._internal_input_idx = data_indices.model.input.prognostic
-        self._internal_output_idx = data_indices.model.output.prognostic
+        self.num_input_channels = len(data_indices.internal_model.input)
+        self.num_output_channels = len(data_indices.internal_model.output)
+        self._internal_input_idx = data_indices.internal_model.input.prognostic
+        self._internal_output_idx = data_indices.internal_model.output.prognostic
 
     def _assert_matching_indices(self, data_indices: dict) -> None:
 
-        assert len(self._internal_output_idx) == len(data_indices.model.output.full) - len(
-            data_indices.model.output.diagnostic
+        assert len(self._internal_output_idx) == len(data_indices.internal_model.output.full) - len(
+            data_indices.internal_model.output.diagnostic
         ), (
-            f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and the output indices excluding "
-            f"diagnostic variables ({len(data_indices.model.output.full) - len(data_indices.model.output.diagnostic)})",
+            f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and "
+            f"the internal output indices excluding diagnostic variables "
+            f"({len(data_indices.internal_model.output.full) - len(data_indices.internal_model.output.diagnostic)})",
         )
         assert len(self._internal_input_idx) == len(
             self._internal_output_idx,
-        ), f"Model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
+        ), f"Internal model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
 
     def _define_tensor_sizes(self, config: DotDict) -> None:
         self._data_grid_size = self._graph_data[self._graph_name_data].num_nodes

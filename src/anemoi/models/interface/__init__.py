@@ -16,7 +16,6 @@ from hydra.utils import instantiate
 from torch.distributed.distributed_c10d import ProcessGroup
 from torch_geometric.data import HeteroData
 
-from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
 from anemoi.models.preprocessing import Processors
 
 
@@ -92,9 +91,13 @@ class AnemoiModelInterface(torch.nn.Module):
             self.pre_processors_tendency = Processors(processors_tendency)
             self.post_processors_tendency = Processors(processors_tendency, inverse=True)
 
-        # Instantiate the model (Can be generalised to other models in the future, here we use AnemoiModelEncProcDec)
-        self.model = AnemoiModelEncProcDec(
-            config=self.config, data_indices=self.data_indices, graph_data=self.graph_data
+        # Instantiate the model
+        self.model = instantiate(
+            self.config.model.model,
+            model_config=self.config,
+            data_indices=self.data_indices,
+            graph_data=self.graph_data,
+            _recursive_=False,  # Disables recursive instantiation by Hydra
         )
 
     def forward(self, x: torch.Tensor, model_comm_group: Optional[ProcessGroup] = None) -> torch.Tensor:
@@ -104,6 +107,10 @@ class AnemoiModelInterface(torch.nn.Module):
             x_pred[..., self.model._internal_output_idx] += x[:, -1, :, :, self.model._internal_input_idx]
         else:
             x_pred = self.model.forward(x, model_comm_group)
+
+        for bounding in self.model.boundings:
+            # bounding performed in the order specified in the config file
+            x_pred = bounding(x_pred)
 
         return x_pred
 
@@ -142,7 +149,7 @@ class AnemoiModelInterface(torch.nn.Module):
 
         return y_hat
 
-    def add_tendency_to_state(self, state_inp, tendency):
+    def add_tendency_to_state(self, state_inp: torch.Tensor, tendency: torch.Tensor) -> torch.Tensor:
         """Add the tendency to the state.
 
         Parameters

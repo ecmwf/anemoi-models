@@ -14,6 +14,8 @@ import torch
 from torch import Tensor
 from torch import nn
 
+from anemoi.models.data_indices.collection import IndexCollection
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -23,20 +25,36 @@ class BasePreprocessor(nn.Module):
     def __init__(
         self,
         config=None,
+        data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
-        data_indices: Optional[dict] = None,
     ) -> None:
         """Initialize the preprocessor.
 
         Parameters
         ----------
         config : DotDict
-            configuration object
+            configuration object of the processor
+        data_indices : IndexCollection
+            Data indices for input and output variables
         statistics : dict
             Data statistics dictionary
         data_indices : dict
             Data indices for input and output variables
+
+        Attributes
+        ----------
+        default : str
+            Default method for variables not specified in the config
+        method_config : dict
+            Dictionary of the methods with lists of variables
+        methods : dict
+            Dictionary of the variables with methods
+        data_indices : IndexCollection
+            Data indices for input and output variables
+        remap : dict
+            Dictionary of the variables with remapped names in the config
         """
+
         super().__init__()
 
         self.default, self.method_config = self._process_config(config)
@@ -45,8 +63,10 @@ class BasePreprocessor(nn.Module):
         self.data_indices = data_indices
 
     def _process_config(self, config):
+        _special_keys = ["default", "remap"]  # Keys that do not contain a list of variables in a preprocessing method.
         default = config.get("default", "none")
-        method_config = {k: v for k, v in config.items() if k != "default" and v is not None and v != "none"}
+        self.remap = config.get("remap", {})
+        method_config = {k: v for k, v in config.items() if k not in _special_keys and v is not None and v != "none"}
 
         if not method_config:
             LOGGER.warning(
@@ -88,6 +108,8 @@ class BasePreprocessor(nn.Module):
             Whether to process the tensor in place
         inverse : bool
             Whether to inverse transform the input
+        data_index : torch.Tensor, optional
+            Normalize only the specified indices, by default.
 
         Returns
         -------
