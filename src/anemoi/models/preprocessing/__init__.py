@@ -137,18 +137,6 @@ class Processors(nn.Module):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__} [{'inverse' if self.inverse else 'forward'}]({self.processors})"
 
-    def __iter__(self):
-        return iter(self.processors)
-
-    def __getitem__(self, key):
-        return self.processors[key]
-
-    def __setitem__(self, key, value):
-        self.processors[key] = value
-
-    def __len__(self):
-        return len(self.processors)
-
     def forward(self, x, in_place: bool = True) -> Tensor:
         """Process the input tensor.
 
