@@ -99,7 +99,7 @@ class BaseImputer(BasePreprocessor, ABC):
             else:
                 raise TypeError(f"Statistics {type(statistics)} is optional and not a dictionary")
 
-            LOGGER.debug(f"Imputer: replacing NaNs in {name} with value {self.replacement[-1]}")
+            LOGGER.info(f"Imputer: replacing NaNs in {name} with value {self.replacement[-1]}")
 
     def _expand_subset_mask(self, x: torch.Tensor, idx_src: int) -> torch.Tensor:
         """Expand the subset of the mask to the correct shape."""
@@ -115,6 +115,10 @@ class BaseImputer(BasePreprocessor, ABC):
             # The mask is only saved for the last two dimensions (grid, variable)
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
             self.nan_locations = torch.isnan(x[idx].squeeze())
+            for var in self.method_config["nan_mask"]:
+                idx_var = self.data_indices.data.input.name_to_index[var]
+                idx_nanmaskvar = self.data_indices.data.input.name_to_index[self.method_config["nan_mask"][var]]
+                self.nan_locations[:, idx_var] = self.nan_locations[:, idx_nanmaskvar]
 
         # Initialize training loss mask to weigh imputed values with zeroes once
         if self.loss_mask_training is None:
@@ -193,6 +197,66 @@ class InputImputer(BaseImputer):
         self._create_imputation_indices(statistics)
 
         self._validate_indices()
+
+
+class ConstantAdditionalNaNImputer(BaseImputer):
+    """Imputes additional missing values in input using a constant value.
+    NaN values are not put back in place for model output.
+
+    Expects the config to have keys corresponding to available statistics
+    and values as lists of variables to impute.:
+    ```
+    default: "none"
+    1:
+        - y
+    5.0:
+        - x
+    3.14:
+        - q
+    ```
+    """
+
+    def __init__(
+        self,
+        config=None,
+        data_indices: Optional[IndexCollection] = None,
+        statistics: Optional[dict] = None,
+    ) -> None:
+        super().__init__(config, data_indices, statistics)
+
+        self._create_imputation_indices()
+
+        self._validate_indices()
+
+    def transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
+        """Impute missing values in the input tensor."""
+        if not in_place:
+            x = x.clone()
+
+        # Find NaN mask for given batch
+        nan_locations = torch.isnan(x)
+
+        # Choose correct index based on number of variables
+        if x.shape[-1] == self.num_training_input_vars:
+            index = self.index_training_input
+        elif x.shape[-1] == self.num_inference_input_vars:
+            index = self.index_inference_input
+        else:
+            raise ValueError(
+                f"Input tensor ({x.shape[-1]}) does not match the training "
+                f"({self.num_training_input_vars}) or inference shape ({self.num_inference_input_vars})",
+            )
+
+        # Replace values
+        for idx_src, (idx_dst, value) in zip(self.index_training_input, zip(index, self.replacement)):
+            if idx_dst is not None and not (~nan_locations[..., idx_dst]).all():
+                # only if NaN remaining
+                nan_locations_src = nan_locations[..., idx_dst]
+                x[..., idx_dst][nan_locations_src] = value
+        return x
+
+    def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
+        return x
 
 
 class ConstantImputer(BaseImputer):
