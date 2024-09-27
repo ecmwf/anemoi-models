@@ -133,16 +133,14 @@ class AnemoiModelInterface(torch.nn.Module):
             assert (
                 len(batch.shape) == 4
             ), f"The input tensor has an incorrect shape: expected a 4-dimensional tensor, got {batch.shape}!"
-
             x = self.pre_processors_state(batch[:, 0 : self.multi_step, ...], in_place=False)
 
             # Dimensions are
             # batch, timesteps, horizontal space, variables
-            x = x[..., None, :]  # add dummy ensemble dimension as 3rd index
-
+            x = x[..., None, :, :]  # add dummy ensemble dimension as 3rd index
             if self.prediction_strategy == "tendency":
                 tendency_hat = self(x)
-                y_hat = self.add_tendency_to_state(batch[:, self.multi_step, ...], tendency_hat)
+                y_hat = self.add_tendency_to_state(x[:, -1, ...], tendency_hat)
             else:
                 y_hat = self(x)
                 y_hat = self.post_processors_state(y_hat, in_place=False)
