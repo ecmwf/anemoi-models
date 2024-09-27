@@ -43,7 +43,7 @@ class BaseImputer(BasePreprocessor, ABC):
 
         self.nan_locations = None
         # weight imputed values wiht zero in loss calculation
-        self.loss_weights_training = None
+        self.loss_mask_training = None
 
     def _validate_indices(self):
         assert len(self.index_training_input) == len(self.index_inference_input) <= len(self.replacement), (
@@ -110,24 +110,25 @@ class BaseImputer(BasePreprocessor, ABC):
         if not in_place:
             x = x.clone()
 
-        # Initilialize mask once
+        # Initilialize nan mask once
         if self.nan_locations is None:
             # The mask is only saved for the last two dimensions (grid, variable)
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
             self.nan_locations = torch.isnan(x[idx].squeeze())
 
+        # Initialize training loss mask to weigh imputed values with zeroes once
+        if self.loss_mask_training is None:
+            self.loss_mask_training = torch.ones(
+                (x.shape[-2], len(self.data_indices.model.output.name_to_index)), device=x.device
+            )  # shape (grid, n_outputs)
+            # for all variables that are imputed and part of the model output, set the loss weight to zero
+            for idx_src, idx_dst in zip(self.index_training_input, self.index_inference_output):
+                if idx_dst is not None:
+                    self.loss_mask_training[:, idx_dst] = (~self.nan_locations[:, idx_src]).int()
+
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
             index = self.index_training_input
-            if self.loss_weights_training is None:
-                self.loss_weights_training = torch.ones(
-                    (x.shape[-2], len(self.data_indices.data.output.name_to_index)), device=x.device
-                )  # shape (grid, n_outputs)
-                # for all variables that are imputed and part of the output, set the loss weight to zero
-                for idx_src, idx_dst in zip(self.index_training_input, self.index_training_output):
-                    if idx_dst is not None:
-                        self.loss_weights_training[:, idx_dst] = (~self.nan_locations[:, idx_src]).int()
-
         elif x.shape[-1] == self.num_inference_input_vars:
             index = self.index_inference_input
         else:
