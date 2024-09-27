@@ -236,6 +236,12 @@ class ConstantAdditionalNaNImputer(BaseImputer):
         # Find NaN mask for given batch
         nan_locations = torch.isnan(x)
 
+        # Initialize training loss mask to ones. moving NaNs are not masked in training loss
+        if self.loss_mask_training is None:
+            self.loss_mask_training = torch.ones(
+                (x.shape[-2], len(self.data_indices.model.output.name_to_index)), device=x.device
+            )  # shape (grid, n_outputs)
+
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
             index = self.index_training_input
