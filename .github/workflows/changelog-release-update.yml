@@ -39,6 +39,6 @@ jobs:
           This PR updates the changelog to include the changes in the latest release.
 
           > [!CAUTION]
-          > Merge without squash to correctly update the tag version of `develop` branch.
+          > Merge DO NOT squash to correctly update the tag version of `develop` branch.
         add-paths: |
           CHANGELOG.md
