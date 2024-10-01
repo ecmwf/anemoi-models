@@ -75,7 +75,8 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         activation: str = "GELU",
         dropout_p: float = 0.0,
         use_flash_attention: bool = False,
-        softcap: float = 0.0,
+        softcap: float | None = 0.0,
+        alibi_slopes: Tensor | None = None,
     ) -> None:
         """Initialize TransformerProcessor.
 
@@ -104,8 +105,9 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
-            softcap=softcap,
             use_flash_attention=use_flash_attention,
+            softcap=softcap,
+            alibi_slopes=alibi_slopes,
         )
 
     def forward(

@@ -97,7 +97,8 @@ class TransformerProcessor(BaseProcessor):
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
         use_flash_attention: bool = False,
-        softcap: float = 0.0,
+        softcap: float | None = 0.0,
+        alibi_slopes: Tensor | None = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -141,6 +142,7 @@ class TransformerProcessor(BaseProcessor):
             dropout_p=dropout_p,
             use_flash_attention=use_flash_attention,
             softcap=softcap,
+            alibi_slopes=alibi_slopes,
         )
 
         self.offload_layers(cpu_offload)
