@@ -97,6 +97,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
+        use_flash_attention: bool = False,
         softcap: float = 0.0,
         **kwargs,
     ) -> None:
@@ -139,6 +140,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
+            use_flash_attention=use_flash_attention,
             softcap=softcap,
         )
 

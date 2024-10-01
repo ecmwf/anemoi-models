@@ -69,6 +69,7 @@ class TransformerProcessorBlock(BaseBlock):
         activation: str,
         window_size: int,
         dropout_p: float = 0.0,
+        use_flash_attention: bool = False,
         softcap: float = 0.0,
     ):
         super().__init__()
@@ -88,6 +89,7 @@ class TransformerProcessorBlock(BaseBlock):
             bias=False,
             is_causal=False,
             dropout_p=dropout_p,
+            use_flash_attention=use_flash_attention,
             softcap=softcap,
         )
 
