@@ -7,7 +7,6 @@
 
 import logging
 
-import pytest
 import torch
 from hypothesis import given
 from hypothesis import settings
@@ -57,7 +56,6 @@ class TestTransformerProcessorBlock:
         dropout_p=st.floats(min_value=0.0, max_value=1.0),
         softcap=st.floats(min_value=0.0, max_value=1.0),
     )
-    @pytest.mark.xfail(raises=TypeError)
     @settings(max_examples=10)
     def test_forward_output(
         self,
@@ -77,8 +75,7 @@ class TestTransformerProcessorBlock:
         )
 
         x = torch.randn((batch_size, num_channels))  # .to(torch.float16, non_blocking=True)
-        with torch.amp.autocast():
-            output = block.forward(x, shapes, batch_size)
+        output = block.forward(x, shapes, batch_size)
         assert isinstance(output, torch.Tensor)
         assert output.shape == (batch_size, num_channels)
 

@@ -84,7 +84,6 @@ def test_transformer_processor_init(transformer_processor, transformer_processor
     assert transformer_processor.chunk_size == num_layers // num_chunks
 
 
-@pytest.mark.xfail(raises=TypeError)
 def test_transformer_processor_forward(transformer_processor, transformer_processor_init):
     (
         _num_layers,
@@ -103,8 +102,7 @@ def test_transformer_processor_forward(transformer_processor, transformer_proces
     x = torch.rand(gridsize, num_channels)
     shard_shapes = [list(x.shape)]
 
-    with torch.amp.autocast():
-        output = transformer_processor.forward(x, batch_size, shard_shapes)
+    output = transformer_processor.forward(x, batch_size, shard_shapes)
     assert output.shape == x.shape
 
     # Generate dummy target and loss function

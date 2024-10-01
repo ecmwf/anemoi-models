@@ -32,8 +32,9 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
-        softcap: float = 0.0,
-        alibi_slopes: Tensor = None,
+        use_flash_attention: bool = False,
+        softcap: float | None = 0.0,
+        alibi_slopes: Tensor | None = None,
     ):
         """Initialize MultiHeadSelfAttention.
 
@@ -65,9 +66,8 @@ class MultiHeadSelfAttention(nn.Module):
             embed_dim % num_heads == 0
         ), f"Embedding dimension ({embed_dim}) must be divisible by number of heads ({num_heads})"
 
-        from flash_attn import flash_attn_func
-
-        self.attention = flash_attn_func
+        self.use_flash_attention = use_flash_attention
+        self.set_attention_function()
 
         self.num_heads = num_heads
         self.embed_dim = embed_dim
@@ -84,6 +84,17 @@ class MultiHeadSelfAttention(nn.Module):
         self.lin_qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
 
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
+
+    def set_attention_function(self):
+
+        if self.use_flash_attention:
+            from flash_attn import flash_attn_func
+
+            self.attention = flash_attn_func
+        else:
+            from torch.nn.functional import scaled_dot_product_attention
+
+            self.attention = scaled_dot_product_attention
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -111,21 +122,29 @@ class MultiHeadSelfAttention(nn.Module):
         value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
         dropout_p = self.dropout_p if self.training else 0.0
 
-        query, key, value = (
-            einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
-        )
-
-        out = self.attention(
-            query,
-            key,
-            value,
-            dropout_p=dropout_p,
-            causal=False,
-            window_size=self.window_size,
-            softcap=self.softcap,
-            alibi_slopes=self.alibi_slopes,
-        )
-        out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
+        if self.use_flash_attention:
+            query, key, value = (
+                einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
+            )
+            out = self.attention(
+                query,
+                key,
+                value,
+                causal=False,
+                window_size=self.window_size,
+                dropout_p=dropout_p,
+                softcap=self.softcap,
+                alibi_slopes=self.alibi_slopes,
+            )
+            out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
+        else:
+            out = self.attention(
+                query,
+                key,
+                value,
+                is_causal=False,
+                dropout_p=dropout_p,
+            )
 
         out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
         out = einops.rearrange(out, "batch heads grid vars -> (batch grid) (heads vars)")
