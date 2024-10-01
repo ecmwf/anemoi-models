@@ -12,16 +12,18 @@ Keep it human-readable, your future self will thank you!
 
 ### Added
 
-- GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
 - Codeowners file
 - Pygrep precommit hooks
 - Docsig precommit hooks
 - Changelog merge strategy
 - configurabilty of the dropout probability in the the MultiHeadSelfAttention module
 - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
+- GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
 
 ### Changed
 - Bugfixes for CI
+- Change Changelog CI to run after successful publish
+- pytest for downstream-ci-hpc
 
 ### Removed
 
