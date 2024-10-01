@@ -33,7 +33,9 @@ from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
 
 LOGGER = logging.getLogger(__name__)
-NUM_CHUNKS_INFERENCE = int(os.environ.get("ANEMOI_NUM_CHUNKS_INFERENCE", "1"))
+
+# Number of Mapper chunks used during inference (https://github.com/ecmwf/anemoi-models/pull/46)
+NUM_CHUNKS_INFERENCE = int(os.environ.get("ANEMOI_INFERENCE_NUM_CHUNKS", "1"))
 
 
 class BaseBlock(nn.Module, ABC):

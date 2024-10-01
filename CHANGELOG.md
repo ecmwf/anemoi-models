@@ -11,15 +11,14 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased](https://github.com/ecmwf/anemoi-models/compare/0.3.0...HEAD)
 
 ### Added
+
+- GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
 - Codeowners file
 - Pygrep precommit hooks
 - Docsig precommit hooks
 - Changelog merge strategy
 - configurabilty of the dropout probability in the the MultiHeadSelfAttention module
 - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
-
-- CI workflow to update the changelog on release
-- Remapper: Preprocessor for remapping one variable to multiple ones. Includes changes to the data indices since the remapper changes the number of variables. With optional config keywords.
 
 ### Changed
 - Bugfixes for CI
