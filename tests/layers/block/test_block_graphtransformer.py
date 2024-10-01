@@ -5,10 +5,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import importlib
+
 import pytest
 import torch
 import torch.nn as nn
 
+import anemoi.models.layers.block
 from anemoi.models.layers.block import GraphTransformerMapperBlock
 from anemoi.models.layers.block import GraphTransformerProcessorBlock
 from anemoi.models.layers.conv import GraphTransformerConv
@@ -330,7 +333,7 @@ def test_GraphTransformerMapperBlock_forward_backward(init, mapper_block):
         ), f"param.grad.shape ({param.grad.shape}) != param.shape ({param.shape}) for {param}"
 
 
-def test_GraphTransformerMapperBlock_chunking(init, mapper_block):
+def test_GraphTransformerMapperBlock_chunking(init, mapper_block, monkeypatch):
     (
         in_channels,
         _hidden_dim,
@@ -353,11 +356,16 @@ def test_GraphTransformerMapperBlock_chunking(init, mapper_block):
     size = (10, 10)
     num_chunks = torch.randint(2, 10, (1,)).item()
 
-    # result with chunks:
-    block.num_chunks = num_chunks
+    # manually set to non-training mode
+    block.eval()
+
+    # result with chunks
+    monkeypatch.setenv("ANEMOI_INFERENCE_NUM_CHUNKS", str(num_chunks))
+    importlib.reload(anemoi.models.layers.block)
     out_chunked, _ = block(x, edge_attr, edge_index, shapes, batch_size, size=size)
-    # result without chunks:
-    block.num_chunks = 1
+    # result without chunks, reload block for new env variable
+    monkeypatch.setenv("ANEMOI_INFERENCE_NUM_CHUNKS", "1")
+    importlib.reload(anemoi.models.layers.block)
     out, _ = block(x, edge_attr, edge_index, shapes, batch_size, size=size)
 
     assert out[0].shape == out_chunked[0].shape, f"out.shape ({out.shape}) != out_chunked.shape ({out_chunked.shape})"
