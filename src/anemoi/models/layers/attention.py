@@ -37,7 +37,7 @@ class MultiHeadSelfAttention(nn.Module):
         dropout_p: float = 0.0,
         use_flash_attention: bool = False,
         softcap: float | None = 0.0,
-        alibi_slopes: Tensor | None = None,
+        use_alibi_slopes: bool | None = None,
     ):
         """Initialize MultiHeadSelfAttention.
 
@@ -57,11 +57,10 @@ class MultiHeadSelfAttention(nn.Module):
             dropout probability, by default 0.0
         softcap : float, optional
             Anything > 0 activates softcapping attention, by default 0.0
-        alibi_slopes : Tensor, optional
-            (nheads,) or (batch_size, nheads), fp32. A bias of
-            (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
-            is added to the attention score of query i and key j,
-            by default None
+        use_alibi_slopes : bool, optional
+            Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
+            to the attention score of query i and key j, where alibi_slope
+            is calculated using get_alibi_slopes, by default None
         """
         super().__init__()
 
@@ -79,7 +78,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.dropout_p = dropout_p
         self.is_causal = is_causal
         self.softcap = softcap
-        self.use_alibi_slopes = True  # use_alibi_slopes
+        self.use_alibi_slopes = use_alibi_slopes
 
         if self.use_alibi_slopes is not None:
             self.alibi_slopes = get_alibi_slopes(num_heads)
@@ -162,6 +161,18 @@ class MultiHeadSelfAttention(nn.Module):
 
 
 def get_alibi_slopes(num_heads: int) -> Tensor:
+    """Calculates linearly decreasing slopes for alibi attention.
+
+    Parameters
+    ----------
+    num_heads : int
+        number of attention heads
+
+    Returns
+    -------
+    Tensor
+        aLiBi slopes
+    """
     n = 2 ** math.floor(math.log2(num_heads))
     slope_0 = 2.0 ** (-8.0 / n)
     alibi_slopes = torch.pow(slope_0, torch.arange(1, 1 + n))
