@@ -36,7 +36,7 @@ class MultiHeadSelfAttention(nn.Module):
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
         use_flash_attention: bool = False,
-        softcap: float | None = 0.0,
+        softcap: float | None = None,
         use_alibi_slopes: bool | None = None,
     ):
         """Initialize MultiHeadSelfAttention.
@@ -56,7 +56,7 @@ class MultiHeadSelfAttention(nn.Module):
         dropout_p : float, optional
             dropout probability, by default 0.0
         softcap : float, optional
-            Anything > 0 activates softcapping attention, by default 0.0
+            Anything > 0 activates softcapping attention, by default None
         use_alibi_slopes : bool, optional
             Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
             to the attention score of query i and key j, where alibi_slope

@@ -76,7 +76,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         activation: str = "GELU",
         dropout_p: float = 0.0,
         use_flash_attention: bool = False,
-        softcap: float | None = 0.0,
+        softcap: float | None = None,
         use_alibi_slopes: bool | None = None,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -96,7 +96,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         dropout_p: float
             Dropout probability used for multi-head self attention, default 0.0
         softcap : float, optional
-            Anything > 0 activates softcapping flash attention, by default 0.0
+            Anything > 0 activates softcapping flash attention, by default None
         use_alibi_slopes : bool, optional
             Use aLiBI option, only used for flash attention, by default None
         """
