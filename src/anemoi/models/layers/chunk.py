@@ -75,8 +75,8 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         activation: str = "GELU",
         dropout_p: float = 0.0,
         use_flash_attention: bool = False,
-        softcap: float | None = None,
-        use_alibi_slopes: bool | None = None,
+        softcap: float = None,
+        use_alibi_slopes: bool = None,
     ) -> None:
         """Initialize TransformerProcessor.
 
