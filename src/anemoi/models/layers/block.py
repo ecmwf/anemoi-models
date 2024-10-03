@@ -65,7 +65,7 @@ class TransformerProcessorBlock(BaseBlock):
         dropout_p: float = 0.0,
         use_flash_attention: bool = False,
         softcap: float | None = 0.0,
-        alibi_slopes: Tensor | None = None,
+        use_alibi_slopes: bool | None = None,
     ):
         super().__init__()
 
@@ -86,7 +86,7 @@ class TransformerProcessorBlock(BaseBlock):
             dropout_p=dropout_p,
             use_flash_attention=use_flash_attention,
             softcap=softcap,
-            alibi_slopes=alibi_slopes,
+            use_alibi_slopes=use_alibi_slopes,
         )
 
         self.mlp = nn.Sequential(

@@ -98,7 +98,7 @@ class TransformerProcessor(BaseProcessor):
         dropout_p: float = 0.1,
         use_flash_attention: bool = False,
         softcap: float | None = 0.0,
-        alibi_slopes: Tensor | None = None,
+        use_alibi_slopes: Tensor | None = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -119,6 +119,10 @@ class TransformerProcessor(BaseProcessor):
             Activation function, by default "GELU"
         dropout_p: float, optional
             Dropout probability used for multi-head self attention, default 0.0
+        softcap : float, optional
+            Anything > 0 activates softcapping flash attention, by default 0.0
+        use_alibi_slopes : bool, optional
+            Use aLiBI option, only used for flash attention, by default None
         """
         super().__init__(
             num_channels=num_channels,
@@ -142,7 +146,7 @@ class TransformerProcessor(BaseProcessor):
             dropout_p=dropout_p,
             use_flash_attention=use_flash_attention,
             softcap=softcap,
-            alibi_slopes=alibi_slopes,
+            use_alibi_slopes=use_alibi_slopes,
         )
 
         self.offload_layers(cpu_offload)
