@@ -98,8 +98,8 @@ class TransformerProcessor(BaseProcessor):
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
         use_flash_attention: bool = False,
-        softcap: float | None = 0.0,
-        use_alibi_slopes: Tensor | None = None,
+        softcap: float = 0.0,
+        use_alibi_slopes: Tensor = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -121,7 +121,7 @@ class TransformerProcessor(BaseProcessor):
         dropout_p: float, optional
             Dropout probability used for multi-head self attention, default 0.0
         softcap : float, optional
-            Anything > 0 activates softcapping flash attention, by default 0.0
+            Anything > 0 activates softcapping flash attention, by default None
         use_alibi_slopes : bool, optional
             Use aLiBI option, only used for flash attention, by default None
         """
