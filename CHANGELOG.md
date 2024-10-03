@@ -40,6 +40,7 @@ Keep it human-readable, your future self will thank you!
 ### Added
 
 - CI workflow to update the changelog on release
+- add configurability of flash attention (#47)
 - configurabilty of the dropout probability in the the MultiHeadSelfAttention module
 - CI workflow to update the changelog on release
 - Remapper: Preprocessor for remapping one variable to multiple ones. Includes changes to the data indices since the remapper changes the number of variables. With optional config keywords.
