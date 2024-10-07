@@ -99,7 +99,7 @@ class TransformerProcessor(BaseProcessor):
         dropout_p: float = 0.1,
         use_flash_attention: bool = False,
         softcap: float = 0.0,
-        use_alibi_slopes: Tensor = None,
+        use_alibi_slopes: bool = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
