@@ -74,6 +74,9 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
         dropout_p: float = 0.0,
+        use_flash_attention: bool = False,
+        softcap: float = None,
+        use_alibi_slopes: bool = None,
     ) -> None:
         """Initialize TransformerProcessor.
 
@@ -91,6 +94,10 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Activation function, by default "GELU"
         dropout_p: float
             Dropout probability used for multi-head self attention, default 0.0
+        softcap : float, optional
+            Anything > 0 activates softcapping flash attention, by default None
+        use_alibi_slopes : bool, optional
+            Use aLiBI option, only used for flash attention, by default None
         """
         super().__init__(num_channels=num_channels, num_layers=num_layers)
 
@@ -102,6 +109,9 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
+            use_flash_attention=use_flash_attention,
+            softcap=softcap,
+            use_alibi_slopes=use_alibi_slopes,
         )
 
     def forward(
