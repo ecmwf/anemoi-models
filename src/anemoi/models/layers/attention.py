@@ -15,6 +15,7 @@ from typing import Optional
 
 import einops
 import torch
+from packaging import version
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -92,9 +93,12 @@ class MultiHeadSelfAttention(nn.Module):
     def set_attention_function(self):
 
         if self.use_flash_attention:
-            from flash_attn import flash_attn_func
+            import flash_attn
 
-            self.attention = flash_attn_func
+            if version.parse(flash_attn.__version__) < version.parse("2.6.0"):
+                raise SystemExit("Error: Flash-attn version is too low. Update to 2.6.0 or higher.")
+            else:
+                self.attention = flash_attn.flash_attn_func
         else:
             from torch.nn.functional import scaled_dot_product_attention
 
