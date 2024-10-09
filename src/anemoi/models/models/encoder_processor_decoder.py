@@ -103,19 +103,20 @@ class AnemoiModelEncProcDec(nn.Module):
         )
 
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
-        self.num_input_channels = len(data_indices.internal_model.input)
-        self.num_output_channels = len(data_indices.internal_model.output)
-        self._internal_input_idx = data_indices.internal_model.input.prognostic
-        self._internal_output_idx = data_indices.internal_model.output.prognostic
+        
+        self.num_input_channels = len(data_indices.model.input)
+        self.num_output_channels = len(data_indices.model.output)
+        self._internal_input_idx = data_indices.model.input.prognostic
+        self._internal_output_idx = data_indices.model.output.prognostic
 
     def _assert_matching_indices(self, data_indices: dict) -> None:
 
-        assert len(self._internal_output_idx) == len(data_indices.internal_model.output.full) - len(
-            data_indices.internal_model.output.diagnostic
+        assert len(self._internal_output_idx) == len(data_indices.model.output.full) - len(
+            data_indices.model.output.diagnostic
         ), (
             f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and "
             f"the internal output indices excluding diagnostic variables "
-            f"({len(data_indices.internal_model.output.full) - len(data_indices.internal_model.output.diagnostic)})",
+            f"({len(data_indices.model.output.full) - len(data_indices.model.output.diagnostic)})",
         )
         assert len(self._internal_input_idx) == len(
             self._internal_output_idx,

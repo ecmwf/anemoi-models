@@ -81,7 +81,7 @@ class AnemoiModelInterface(torch.nn.Module):
         #     _recursive_=False
         # )
 
-        if self.config.model._target_ == 'anemoi.models.models.AnemoiModelEncProcDecHierarchical':
+        if self.config.model.model._target_ == 'anemoi.models.models.encoder_processor_decoder.AnemoiModelEncProcDecHierarchical':
             from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDecHierarchical
 
             self.model = AnemoiModelEncProcDecHierarchical(
@@ -90,7 +90,7 @@ class AnemoiModelInterface(torch.nn.Module):
                 graph_data=self.graph_data
             )
         
-        elif self.config.model._target_ == 'anemoi.models.models.AnemoiModelEncProcDec':
+        elif self.config.model.model._target_ == 'anemoi.models.models.encoder_processor_decoder.AnemoiModelEncProcDec':
             from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
 
             self.model = AnemoiModelEncProcDec(
@@ -100,7 +100,7 @@ class AnemoiModelInterface(torch.nn.Module):
             )
         
         else:
-            raise(NotImplementedError, f'This interface has not been implemented: {self.config.model._target_}')
+            raise(NotImplementedError, f'This interface has not been implemented: {self.config.model.model._target_}')
 
 
         # Use the forward method of the model directly
