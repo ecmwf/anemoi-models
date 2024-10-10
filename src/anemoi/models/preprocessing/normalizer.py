@@ -47,7 +47,7 @@ class InputNormalizer(BasePreprocessor):
         name_to_index_training_input = self.data_indices.data.input.name_to_index
         assert all(isinstance(_, str) for _ in name_to_index_training_input.keys()), name_to_index_training_input
 
-        print('✅',statistics)
+        print('✅,',statistics)
         minimum = statistics["minimum"]
         maximum = statistics["maximum"]
         mean = statistics["mean"]
@@ -100,12 +100,14 @@ class InputNormalizer(BasePreprocessor):
                 raise ValueError[f"Unknown normalisation method for {name}: {method}"]
 
         # register buffer - this will ensure they get copied to the correct device(s)
-        _norm_mul = _norm_mul.flatten()
-        _norm_add = _norm_add.flatten()
-        self.register_buffer("_norm_mul", torch.from_numpy(_norm_mul), persistent=True)
-        self.register_buffer("_norm_add", torch.from_numpy(_norm_add), persistent=True)
-        self.register_buffer("_input_idx", data_indices.data.input.full, persistent=True)
-        self.register_buffer("_output_idx", self.data_indices.data.output.full, persistent=True)
+        _norm_mul.as_torch().register_buffer(name="_norm_mul", persistent=True, caller=self)
+        _norm_add.as_torch().register_buffer(name="_norm_add", persistent=True, caller=self)
+
+        # this should go in a class or in a method
+        for k, v in data_indices.data.input.full.items():
+            self.register_buffer(f"_input_idx__{k}", v, persistent=True)
+        for k, v in self.data_indices.data.output.full.items():
+            self.register_buffer(f"_output_idx__{k}", v, persistent=True)
 
     def _validate_normalization_inputs(self, name_to_index_training_input: dict, minimum, maximum, mean, stdev):
         assert len(self.methods) == sum(len(v) for v in self.method_config.values()), (
@@ -118,7 +120,8 @@ class InputNormalizer(BasePreprocessor):
         assert stdev.size == n, (stdev.size, n)
 
         for name, (i,j) in name_to_index_training_input.items():
-            assert i < len(minimum.arrays), ((i,j), name, [v.size for v in minimum.arrays] ,'💬', name_to_index_training_input)
+            if isinstance(i, int):
+                assert i < len(minimum.arrays), ((i,j), name, [v.size for v in minimum.arrays] ,'💬', name_to_index_training_input)
             assert j < minimum.arrays[i].size, ((i,j), name,minimum.arrays[i].size, '💬',name_to_index_training_input)
 
         assert isinstance(self.methods, dict)
