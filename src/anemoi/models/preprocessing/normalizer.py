@@ -11,7 +11,7 @@ import logging
 import warnings
 from typing import Optional
 
-from anemoi.utils.data_structures import NumpyNestedAnemoiTensor
+from anemoi.utils.data_structures import NestedTrainingSample, NumpyNestedAnemoiTensor
 
 import numpy as np
 import torch
@@ -136,7 +136,7 @@ class InputNormalizer(BasePreprocessor):
             ], f"{method} is not a valid normalisation method"
 
     def transform(
-        self, x: torch.Tensor, in_place: bool, data_index: torch.Tensor,
+        self, x: torch.Tensor, in_place: bool, data_index: torch.Tensor=None,
     ) -> torch.Tensor:
         """Normalizes an input tensor x of shape [..., nvars].
 
@@ -160,10 +160,19 @@ class InputNormalizer(BasePreprocessor):
             _description_
         """
         if not in_place:
-            x = x.clone()  # TODO: fix this; implement a custom clone() op?
+            x = x.clone()
 
-        assert data_index is not None  # [Mihai] we require a data_index
-        x[..., :] = x[..., :] * self._norm_mul[data_index] + self._norm_add[data_index]
+        assert isinstance(x, NestedTrainingSample), type(x)
+        assert data_index is None
+
+        # should be a method
+        for s in x:
+            for k,v in s.items():
+                norm_mul = getattr(self, "_norm_mul"+f"__{k}")
+                norm_add = getattr(self, "_norm_add"+f"__{k}")
+                v[..., :] = v[..., :] * norm_mul + norm_add
+        print('Normalisation done. OK.' )
+
         return x
 
     def inverse_transform(
