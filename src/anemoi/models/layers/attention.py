@@ -89,9 +89,13 @@ class MultiHeadSelfAttention(nn.Module):
         dropout_p = self.dropout_p if self.training else 0.0
 
         if _FLASH_ATTENTION_AVAILABLE:
+            import torch
             query, key, value = (
                 einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
             )
+            query = query.to(torch.bfloat16, non_blocking=True).to(device="cuda")
+            key = key.to(torch.bfloat16, non_blocking=True).to(device="cuda")
+            value = value.to(torch.bfloat16, non_blocking=True).to(device="cuda")
             out = self.attention(query, key, value, causal=False, window_size=self.window_size, dropout_p=dropout_p)
             out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
         else:
