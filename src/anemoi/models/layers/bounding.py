@@ -141,6 +141,7 @@ class MaskBounding(BaseBounding):
         super().__init__(variables=variables, name_to_index=name_to_index)
         self.mask_var = self._create_index(variables=[mask_var])  # Create index for the mask variable
         self.trs_val = trs_val  # Threshold value
+        self.custom_value = custom_value  # Custom value for masked regions
         self.mask_type = mask_type  # Mask type, either '>=' or '<='
 
         # Validate mask_type input
