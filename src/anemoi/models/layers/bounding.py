@@ -113,3 +113,46 @@ class FractionBounding(HardtanhBounding):
         # Calculate the fraction of the total variable
         x[..., self.data_index] *= x[..., self.total_variable]
         return x
+
+
+class MaskBounding(BaseBounding):
+    """Initializes the MaskBounding with a mask variable, threshold, and mask type.
+
+    Parameters
+    ----------
+    variables : list[str]
+        A list of strings representing the variables that will be masked.
+    name_to_index : dict
+        A dictionary mapping the variable names to their corresponding indices.
+    mask_var : str
+        The name of the variable on which the mask is based.
+    trs_val : float
+        The threshold value for creating the mask.
+    mask_type : str, optional
+        The type of mask to apply: '>=' (default) or '<='. Determines whether the mask is active
+        when the variable is greater than or equal to the threshold or less than or equal to the threshold.
+    """
+
+    def __init__(
+        self, *, variables: list[str], name_to_index: dict, mask_var: str, trs_val: float, mask_type: str = ">="
+    ) -> None:
+        super().__init__(variables=variables, name_to_index=name_to_index)
+        self.mask_var = self._create_index(variables=[mask_var])  # Create index for the mask variable
+        self.trs_val = trs_val  # Threshold value
+        self.mask_type = mask_type  # Mask type, either '>=' or '<='
+
+        # Validate mask_type input
+        if self.mask_type not in {">=", "<="}:
+            raise ValueError("mask_type must be either '>=' or '<='.")
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Generate the mask based on the mask_type
+        if self.mask_type == ">=":
+            mask = (x[..., self.mask_var] >= self.trs_val).float()
+        elif self.mask_type == "<=":
+            mask = (x[..., self.mask_var] <= self.trs_val).float()
+
+        # Apply the mask to the dependent variables (self.data_index)
+        x[..., self.data_index] *= mask  # Multiply the dependent variables by the mask
+        
+        return x
