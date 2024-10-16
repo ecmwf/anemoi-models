@@ -128,13 +128,15 @@ class MaskBounding(BaseBounding):
         The name of the variable on which the mask is based.
     trs_val : float
         The threshold value for creating the mask.
+    custom_value : float, optional
+        A custom value to assign to the masked regions. If not provided, default behavior is to set masked regions to zero.
     mask_type : str, optional
         The type of mask to apply: '>=' (default) or '<='. Determines whether the mask is active
         when the variable is greater than or equal to the threshold or less than or equal to the threshold.
     """
 
     def __init__(
-        self, *, variables: list[str], name_to_index: dict, mask_var: str, trs_val: float, mask_type: str = ">="
+        self, *, variables: list[str], name_to_index: dict, mask_var: str, trs_val: float, custom_value: float = 0.0, mask_type: str = ">="
     ) -> None:
         super().__init__(variables=variables, name_to_index=name_to_index)
         self.mask_var = self._create_index(variables=[mask_var])  # Create index for the mask variable
@@ -153,6 +155,7 @@ class MaskBounding(BaseBounding):
             mask = (x[..., self.mask_var] <= self.trs_val).float()
 
         # Apply the mask to the dependent variables (self.data_index)
-        x[..., self.data_index] *= mask  # Multiply the dependent variables by the mask
+        # Retain values where mask is 1, and set custom_value where mask is 0
+        x[..., self.data_index] = mask * x[..., self.data_index] + (1 - mask) * self.custom_value
         
         return x
