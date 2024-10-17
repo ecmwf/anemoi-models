@@ -148,6 +148,10 @@ class MaskBounding(BaseBounding):
         if self.mask_type not in {">=", "<="}:
             raise ValueError("mask_type must be either '>=' or '<='.")
 
+        # Ensure custom_value is a float or int
+        if not isinstance(self.custom_value, (float, int)):
+            raise ValueError("custom_value must be a float or int")
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Generate the mask based on the mask_type
         if self.mask_type == ">=":
@@ -155,8 +159,11 @@ class MaskBounding(BaseBounding):
         elif self.mask_type == "<=":
             mask = (x[..., self.mask_var] <= self.trs_val).float()
 
+        # Ensure mask is the same data type as the input tensor
+        mask = mask.to(x.dtype)
+
         # Apply the mask to the dependent variables (self.data_index)
         # Retain values where mask is 1, and set custom_value where mask is 0
         x[..., self.data_index] = mask * x[..., self.data_index] + (1 - mask) * self.custom_value
-        
+
         return x
