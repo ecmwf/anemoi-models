@@ -67,6 +67,8 @@ class AnemoiModelEncProcDec(nn.Module):
         self._register_latlon("data", self._graph_name_data)
         self._register_latlon("hidden", self._graph_name_hidden)
 
+        self.data_indices = data_indices
+
         self.num_channels = model_config.model.num_channels
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
@@ -81,6 +83,7 @@ class AnemoiModelEncProcDec(nn.Module):
             src_grid_size=self._data_grid_size,
             dst_grid_size=self._hidden_grid_size,
         )
+
         # Processor hidden -> hidden
         self.processor = instantiate(
             model_config.model.processor,
@@ -89,6 +92,7 @@ class AnemoiModelEncProcDec(nn.Module):
             src_grid_size=self._hidden_grid_size,
             dst_grid_size=self._hidden_grid_size,
         )
+
         # Decoder hidden -> data
         self.decoder = instantiate(
             model_config.model.decoder,
@@ -110,20 +114,19 @@ class AnemoiModelEncProcDec(nn.Module):
         )
 
     def _calculate_shapes_and_indices(self, data_indices: dict) -> None:
-        
-        self.num_input_channels = len(data_indices.model.input)
-        self.num_output_channels = len(data_indices.model.output)
-        self._internal_input_idx = data_indices.model.input.prognostic
-        self._internal_output_idx = data_indices.model.output.prognostic
+        self.num_input_channels = len(data_indices.internal_model.input)
+        self.num_output_channels = len(data_indices.internal_model.output)
+        self._internal_input_idx = data_indices.internal_model.input.prognostic
+        self._internal_output_idx = data_indices.internal_model.output.prognostic
 
     def _assert_matching_indices(self, data_indices: dict) -> None:
 
-        assert len(self._internal_output_idx) == len(data_indices.model.output.full) - len(
-            data_indices.model.output.diagnostic
+        assert len(self._internal_output_idx) == len(data_indices.internal_model.output.full) - len(
+            data_indices.internal_model.output.diagnostic
         ), (
             f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and "
             f"the internal output indices excluding diagnostic variables "
-            f"({len(data_indices.model.output.full) - len(data_indices.model.output.diagnostic)})",
+            f"({len(data_indices.internal_model.output.full) - len(data_indices.internal_model.output.diagnostic)})",
         )
         assert len(self._internal_input_idx) == len(
             self._internal_output_idx,
@@ -153,7 +156,9 @@ class AnemoiModelEncProcDec(nn.Module):
     def _create_trainable_attributes(self) -> None:
         """Create all trainable attributes."""
         self.trainable_data = TrainableTensor(trainable_size=self.trainable_data_size, tensor_size=self._data_grid_size)
-        self.trainable_hidden = TrainableTensor(trainable_size=self.trainable_hidden_size, tensor_size=self._hidden_grid_size)
+        self.trainable_hidden = TrainableTensor(
+            trainable_size=self.trainable_hidden_size, tensor_size=self._hidden_grid_size
+        )
 
     def _run_mapper(
         self,

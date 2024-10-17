@@ -71,7 +71,7 @@ class AnemoiModelInterface(torch.nn.Module):
         # Assign the processor list pre- and post-processors
         self.pre_processors = Processors(processors)
         self.post_processors = Processors(processors, inverse=True)
-        
+
         # Instantiate the model
         self.model = instantiate(
             self.config.model.model,
