@@ -72,36 +72,14 @@ class AnemoiModelInterface(torch.nn.Module):
         self.pre_processors = Processors(processors)
         self.post_processors = Processors(processors, inverse=True)
         
-        # # TODO: Make the instantiate work
-        # self.model = instantiate(
-        #     self.config.model,
-        #     model_config=self.config,
-        #     data_indices=self.data_indices, 
-        #     graph_data=self.graph_data,
-        #     _recursive_=False
-        # )
-
-        if self.config.model.model._target_ == 'anemoi.models.models.encoder_processor_decoder.AnemoiModelEncProcDecHierarchical':
-            from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDecHierarchical
-
-            self.model = AnemoiModelEncProcDecHierarchical(
-                model_config=self.config,
-                data_indices=self.data_indices, 
-                graph_data=self.graph_data
-            )
-        
-        elif self.config.model.model._target_ == 'anemoi.models.models.encoder_processor_decoder.AnemoiModelEncProcDec':
-            from anemoi.models.models.encoder_processor_decoder import AnemoiModelEncProcDec
-
-            self.model = AnemoiModelEncProcDec(
-                model_config=self.config,
-                data_indices=self.data_indices, 
-                graph_data=self.graph_data
-            )
-        
-        else:
-            raise(NotImplementedError, f'This interface has not been implemented: {self.config.model.model._target_}')
-
+        # Instantiate the model
+        self.model = instantiate(
+            self.config.model.model,
+            model_config=self.config,
+            data_indices=self.data_indices,
+            graph_data=self.graph_data,
+            _recursive_=False,  # Disables recursive instantiation by Hydra
+        )
 
         # Use the forward method of the model directly
         self.forward = self.model.forward
