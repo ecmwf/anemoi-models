@@ -22,6 +22,7 @@ from torch_geometric.data import HeteroData
 
 from anemoi.models.distributed.shapes import get_shape_shards
 from anemoi.models.layers.graph import TrainableTensor
+from anemoi.models.layers.processor import BaseProcessor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -53,16 +54,17 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
         self._graph_data = graph_data
 
+        ## Get hidden layers names
+        self._graph_name_data = model_config.graph.data
+        self._graph_hidden_names = model_config.graph.hidden
+        self.num_hidden = len(self._graph_hidden_names)
+
         # Unpack config for hierarchical graph
-        self.num_hidden = model_config.graph.num_hidden
-        self.level_process = model_config.graph.level_process
-        self.level_proc_idx = 2 if self.level_process else 1
+        self.level_process = model_config.model.level_process
+        
         # hidden_dims is the dimentionality of features at each depth 
         self.hidden_dims = [model_config.model.num_channels*(2**i)-4 for i in range(self.num_hidden)] # first 4 will be for lat-lon positional encoding
 
-        ## Get hidden layers names
-        self._graph_name_data = "data"
-        self._graph_hidden_names = [f'hidden_{i}' for i in range(1, self.num_hidden + 1)] # All indexes here are strings and start from 1
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
@@ -244,17 +246,9 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
         ## Downscale
         for i, layer in enumerate(self.downscale):
-            # Process to next level
-            if  i % self.level_proc_idx != 0:
-                _, curr_latent = self._run_mapper(
-                    layer,
-                    (curr_latent, x_latents[(i//2)+1]),
-                    batch_size=batch_size,
-                    shard_shapes=(shard_shapes_hiddens[i//2], shard_shapes_hiddens[(i//2)+1]),
-                    model_comm_group=model_comm_group,
-                )
+            
             # Processing at same level
-            else:
+            if isinstance(layer, BaseProcessor):
                 curr_latent = layer(
                     curr_latent,
                     batch_size=batch_size,
@@ -264,6 +258,16 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
                 # store latents for skip connections
                 x_latents_down.append(curr_latent)
+            
+            # Downscale to next layer
+            else:
+                _, curr_latent = self._run_mapper(
+                    layer,
+                    (curr_latent, x_latents[(i//2)+1]),
+                    batch_size=batch_size,
+                    shard_shapes=(shard_shapes_hiddens[i//2], shard_shapes_hiddens[(i//2)+1]),
+                    model_comm_group=model_comm_group,
+                )
 
         # Remove hiddenmost latent from skip connection list
         x_latents_down.pop()
@@ -272,17 +276,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         for j, layer in enumerate(self.upscale):
             layer_idx = i+j # i+j is cumulative layer index
 
-            # Process to next level
-            if  layer_idx % self.level_proc_idx == 0:
-                curr_latent = self._run_mapper(
-                    layer,
-                    (curr_latent, x_latents[(layer_idx//2)+1]),
-                    batch_size=batch_size,
-                    shard_shapes=(shard_shapes_hiddens[layer_idx//2], shard_shapes_hiddens[(layer_idx//2)+1]),
-                    model_comm_group=model_comm_group,
-                )
             # Processing at same level
-            else:
+            if  isinstance(layer, BaseProcessor):
                 curr_latent = layer(
                         curr_latent,
                         batch_size=batch_size,
@@ -292,6 +287,15 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                 
                 curr_latent += x_latents_down.pop()
 
+            # Process to next level
+            else:
+                curr_latent = self._run_mapper(
+                    layer,
+                    (curr_latent, x_latents[(layer_idx//2)+1]),
+                    batch_size=batch_size,
+                    shard_shapes=(shard_shapes_hiddens[layer_idx//2], shard_shapes_hiddens[(layer_idx//2)+1]),
+                    model_comm_group=model_comm_group,
+                )
 
         # Run decoder
         x_out = self._run_mapper(
