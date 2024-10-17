@@ -115,7 +115,6 @@ class ForwardMapperPreProcessMixin:
         return x_src, x_dst, shapes_src, shapes_dst
 
 
-
 class GraphEdgeMixin:
     def _register_edges(
         self, sub_graph: HeteroData, edge_attributes: list[str], src_size: int, dst_size: int, trainable_size: int
@@ -135,8 +134,8 @@ class GraphEdgeMixin:
         trainable_size : int
             Trainable tensor size
         """
-        if edge_attributes is None:
-            raise ValueError("Edge attributes must be provided")
+        assert sub_graph, f"{self.__class__.__name__} needs a valid sub_graph to register edges."
+        assert edge_attributes is not None, "Edge attributes must be provided"
 
         edge_attr_tensor = torch.cat([sub_graph[attr] for attr in edge_attributes], axis=1)
 
