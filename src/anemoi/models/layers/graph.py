@@ -63,7 +63,9 @@ class NamedNodesAttributes(torch.nn.Module):
         self.nodes_names = list(graph_data.node_types)
         self.num_nodes = {nodes_name: graph_data[nodes_name].num_nodes for nodes_name in self.nodes_names}
         self.coord_dims = {nodes_name: 2 * graph_data[nodes_name].x.shape[1] for nodes_name in self.nodes_names}
-        self.attr_ndims = {nodes_name: self.coord_dims[nodes_name] + self.num_trainable_params for nodes_name in self.nodes_names}
+        self.attr_ndims = {
+            nodes_name: self.coord_dims[nodes_name] + self.num_trainable_params for nodes_name in self.nodes_names
+        }
 
     def register_coordinates(self, name: str, node_coords: torch.Tensor) -> None:
         """Register coordinates."""
