@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from anemoi.models.data_indices.tensor import InputTensorIndex
-
+from anemoi.models.preprocessing.normalizer import InputNormalizer
 
 class BaseBounding(nn.Module, ABC):
     """Abstract base class for bounding strategies.
@@ -157,6 +157,7 @@ class MaskBounding(BaseBounding):
         if self.mask_type == ">=":
             mask = (x[..., self.mask_var] >= self.trs_val).float()
         elif self.mask_type == "<=":
+            #mask = (InputNormalizer.inverse_transform(x=x[..., self.mask_var], in_place=False) <= self.trs_val).float()
             mask = (x[..., self.mask_var] <= self.trs_val).float()
 
         # Ensure mask is the same data type as the input tensor
