@@ -70,6 +70,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         num_channels: int,
         num_layers: int,
         window_size: int,
+        resolution: str,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -101,6 +102,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             num_heads=num_heads,
             activation=activation,
             window_size=window_size,
+            resolution=resolution,
             dropout_p=dropout_p,
         )
 

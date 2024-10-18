@@ -36,3 +36,18 @@ class AutocastLayerNorm(nn.LayerNorm):
         precision.
         """
         return super().forward(x).type_as(x)
+
+#takes a resolution and calculates the number of grid points
+# e.g. o32 -> 5248, o96 -> 40320
+def calculate_seq_len(resolution: str):
+    grid_type=resolution[0] # e.g. 'o'
+    num_lat_lines=int(resolution[1:]) # e.g. 32
+    accum=0
+    if (grid_type.lower() == 'o'):
+        # algorithm from https://confluence.ecmwf.int/display/FCST/Introducing+the+octahedral+reduced+Gaussian+grid
+        for i in range(1,num_lat_lines+1):
+            accum += (4 * i) + 16
+        result = accum * 2 # above was just pole -> equator, double for whole globe
+    else:
+        ValueError("Only octahedral (reduced) Gaussian grid, 'o', implemented")
+    return result

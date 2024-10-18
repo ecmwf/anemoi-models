@@ -96,6 +96,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
+        resolution: str = "X0",
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -126,6 +127,7 @@ class TransformerProcessor(BaseProcessor):
             cpu_offload=cpu_offload,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
+            resolution=resolution,
         )
 
         self.build_layers(
@@ -137,6 +139,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
+            resolution=resolution,
         )
 
         self.offload_layers(cpu_offload)

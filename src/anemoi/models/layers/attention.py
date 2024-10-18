@@ -37,6 +37,7 @@ else:
 
 from anemoi.models.distributed.transformer import shard_heads
 from anemoi.models.distributed.transformer import shard_sequence
+from anemoi.models.layers.utils import calculate_seq_len
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ class MultiHeadSelfAttention(nn.Module):
         self,
         num_heads: int,
         embed_dim: int,
+        resolution: str,
         bias: bool = False,
         is_causal: bool = False,
         window_size: Optional[int] = None,
@@ -68,6 +70,8 @@ class MultiHeadSelfAttention(nn.Module):
 
         self.lin_qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
         self.attention = attn_func
+        
+        self.resolution = resolution
 
         if _FLEX_ATTENTION_AVAILABLE and (os.environ.get("FLEX_ATTN", "") != "" ):
             LOGGER.info("Using Flex attn")
@@ -76,19 +80,9 @@ class MultiHeadSelfAttention(nn.Module):
             def sliding_window(b, h, q_idx, kv_idx):
                 return abs(q_idx - kv_idx) <= window_size
 
-            #TODO stop hardcoding latent space dims
-            seq_len=40320 #o96
-            #seq_len=5248 #o32
-            
-            def calculate_seq_len(grid_type: str, num_lat_lines: int):
-                accum=0
-                for i in range(1,num_lat_lines):
-                    accum += (4 * i) + 16
-                return accum * 2
-            
-            LOGGER.info(f"{calculate_seq_len('o', 32)}")
-                
-            
+            seq_len=calculate_seq_len(resolution=self.resolution)
+            LOGGER.debug(f"grid points = {seq_len} for {self.resolution} resolution")
+
             # B and H can be None here because they are uniform, so the block mask can just be broadcast to these dims
             #TODO check if B != 1, does it have to be set?
             self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)

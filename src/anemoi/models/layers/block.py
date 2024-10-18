@@ -67,6 +67,7 @@ class TransformerProcessorBlock(BaseBlock):
         num_heads: int,
         activation: str,
         window_size: int,
+        resolution: str,
         dropout_p: float = 0.0,
     ):
         super().__init__()
@@ -82,6 +83,7 @@ class TransformerProcessorBlock(BaseBlock):
         self.attention = MultiHeadSelfAttention(
             num_heads=num_heads,
             embed_dim=num_channels,
+            resolution=resolution,
             window_size=window_size,
             bias=False,
             is_causal=False,
