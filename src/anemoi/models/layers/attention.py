@@ -16,6 +16,17 @@ from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
 
 try:
+    from torch.nn.attention.flex_attention import flex_attention, create_block_mask
+except ImportError:
+    _FLEX_ATTENTION_AVAILABLE = False
+else:
+    import functools
+    from torch import abs, compile, _dynamo
+    import os
+    _FLEX_ATTENTION_AVAILABLE = True
+    
+
+try:
     from flash_attn import flash_attn_func as attn_func
 except ImportError:
     from torch.nn.functional import scaled_dot_product_attention as attn_func
@@ -58,6 +69,37 @@ class MultiHeadSelfAttention(nn.Module):
         self.lin_qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
         self.attention = attn_func
 
+        if _FLEX_ATTENTION_AVAILABLE and (os.environ.get("FLEX_ATTN", "") != "" ):
+            LOGGER.info("Using Flex attn")
+            #LOGGER.info(f"self.num_heads {self.num_heads} self.embed_dim {self.embed_dim} self.head_dim {self.head_dim} self.dropout {self.dropout_p}")
+            
+            def sliding_window(b, h, q_idx, kv_idx):
+                return abs(q_idx - kv_idx) <= window_size
+
+            #TODO stop hardcoding latent space dims
+            seq_len=40320 #o96
+            #seq_len=5248 #o32
+            
+            def calculate_seq_len(grid_type: str, num_lat_lines: int):
+                accum=0
+                for i in range(1,num_lat_lines):
+                    accum += (4 * i) + 16
+                return accum * 2
+            
+            LOGGER.info(f"{calculate_seq_len('o', 32)}")
+                
+            
+            # B and H can be None here because they are uniform, so the block mask can just be broadcast to these dims
+            #TODO check if B != 1, does it have to be set?
+            self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
+            self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (attn blog post)
+            self.attention = compile(self.attention) #Must be compiled, otherwise entire seq_len^2 aray is materilised in memory -> OOM
+
+            if (self.is_causal):
+                LOGGER.error("Causal not yet supported when using flex_attn (but this would be an easy add). Please rerun with 'is_causal = False'")
+            if (self.dropout_p != 0.0):
+                LOGGER.error("Dropout not yet supported when using flex_attn. Please rerun with 'dropout_p = 0.0'")
+
         if not _FLASH_ATTENTION_AVAILABLE:
             LOGGER.warning("Flash attention not available, falling back to pytorch scaled_dot_product_attention")
 
@@ -88,7 +130,12 @@ class MultiHeadSelfAttention(nn.Module):
         value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
         dropout_p = self.dropout_p if self.training else 0.0
 
-        if _FLASH_ATTENTION_AVAILABLE:
+        if _FLEX_ATTENTION_AVAILABLE and (os.environ.get("FLEX_ATTN", "") != "" ):
+            _dynamo.config.optimize_ddp = False
+            out = self.attention(query, key, value)
+            _dynamo.config.optimize_ddp = True
+        
+        elif _FLASH_ATTENTION_AVAILABLE:
             query, key, value = (
                 einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
             )
