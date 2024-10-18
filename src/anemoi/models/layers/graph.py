@@ -11,6 +11,7 @@ import einops
 import torch
 from torch import Tensor
 from torch import nn
+from torch_geometric.data import HeteroData
 
 
 class TrainableTensor(nn.Module):
@@ -35,8 +36,47 @@ class TrainableTensor(nn.Module):
     def forward(self, x: Tensor, batch_size: int) -> Tensor:
         latent = [einops.repeat(x, "e f -> (repeat e) f", repeat=batch_size)]
         if self.trainable is not None:
-            latent.append(einops.repeat(self.trainable, "e f -> (repeat e) f", repeat=batch_size))
+            latent.append(einops.repeat(self.trainable.to(x.device), "e f -> (repeat e) f", repeat=batch_size))
         return torch.cat(
             latent,
             dim=-1,  # feature dimension
         )
+
+
+class NamedNodesAttributes(torch.nn.Module):
+    """Named Node Attributes Module."""
+
+    def __init__(self, num_trainable_params: int, graph_data: HeteroData) -> None:
+        """Initialize NamedNodesAttributes."""
+        super().__init__()
+
+        self.num_trainable_params = num_trainable_params
+        self.register_fixed_attributes(graph_data)
+
+        self.trainable_tensors = nn.ModuleDict()
+        for nodes_name in self.nodes_names:
+            self.register_coordinates(nodes_name, graph_data[nodes_name].x)
+            self.register_tensor(nodes_name)
+
+    def register_fixed_attributes(self, graph_data: HeteroData) -> None:
+        """Register fixed attributes."""
+        self.nodes_names = list(graph_data.node_types)
+        self.num_nodes = {nodes_name: graph_data[nodes_name].num_nodes for nodes_name in self.nodes_names}
+        self.coord_dims = {nodes_name: 2 * graph_data[nodes_name].x.shape[1] for nodes_name in self.nodes_names}
+        self.attr_ndims = {
+            nodes_name: self.coord_dims[nodes_name] + self.num_trainable_params for nodes_name in self.nodes_names
+        }
+
+    def register_coordinates(self, name: str, node_coords: torch.Tensor) -> None:
+        """Register coordinates."""
+        sin_cos_coords = torch.cat([torch.sin(node_coords), torch.cos(node_coords)], dim=-1)
+        self.register_buffer(f"latlons_{name}", sin_cos_coords, persistent=True)
+
+    def register_tensor(self, name: str) -> None:
+        """Register a trainable tensor."""
+        self.trainable_tensors[name] = TrainableTensor(self.num_nodes[name], self.num_trainable_params)
+
+    def forward(self, name: str, batch_size: int) -> Tensor:
+        """Forward pass."""
+        latlons = getattr(self, f"latlons_{name}")
+        return self.trainable_tensors[name](latlons, batch_size)
