@@ -10,16 +10,25 @@ Keep it human-readable, your future self will thank you!
 
 ## [Unreleased](https://github.com/ecmwf/anemoi-models/compare/0.3.0...HEAD)
 
+- Add synchronisation workflow
+
 ### Added
+
+- Add anemoi-transform link to documentation
 - Codeowners file
 - Pygrep precommit hooks
 - Docsig precommit hooks
 - Changelog merge strategy
 - configurabilty of the dropout probability in the the MultiHeadSelfAttention module
 - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
+- GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
 
 ### Changed
 - Bugfixes for CI
+- Change Changelog CI to run after successful publish
+- pytest for downstream-ci-hpc
+- Update CODEOWNERS
+- ci: extened python versions to include 3.11 and 3.12 [#66](https://github.com/ecmwf/anemoi-models/pull/66)
 
 ### Removed
 
