@@ -35,7 +35,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self,
         *,
         model_config: DotDict,
-        data_indices: dict,
+        data_indices: IndexCollection,
         graph_data: HeteroData,
     ) -> None:
         """Initializes the graph neural network.
@@ -44,7 +44,7 @@ class AnemoiModelEncProcDec(nn.Module):
         ----------
         model_config : DotDict
             Model configuration
-        data_indices : dict
+        data_indices : IndexCollection
             Data indices
         graph_data : HeteroData
             Graph definition
@@ -57,7 +57,6 @@ class AnemoiModelEncProcDec(nn.Module):
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
-        self.data_indices = data_indices
 
         self.multi_step = model_config.training.multistep_input
         self.num_channels = model_config.model.num_channels
@@ -71,10 +70,28 @@ class AnemoiModelEncProcDec(nn.Module):
         # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
         self.boundings = nn.ModuleList(
             [
-                instantiate(cfg, name_to_index=self.data_indices.internal_model.output.name_to_index)
+                instantiate(cfg, name_to_index=data_indices.internal_model.output.name_to_index)
                 for cfg in getattr(model_config.model, "bounding", [])
             ]
         )
+
+    def _calculate_shapes_and_indices(self, data_indices: IndexCollection) -> None:
+        self.num_input_channels = len(data_indices.internal_model.input)
+        self.num_output_channels = len(data_indices.internal_model.output)
+        self._internal_input_idx = data_indices.internal_model.input.prognostic
+        self._internal_output_idx = data_indices.internal_model.output.prognostic
+
+    def _assert_matching_indices(self, data_indices: IndexCollection) -> None:
+        assert len(self._internal_output_idx) == len(data_indices.internal_model.output.full) - len(
+            data_indices.internal_model.output.diagnostic
+        ), (
+            f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and "
+            f"the internal output indices excluding diagnostic variables "
+            f"({len(data_indices.internal_model.output.full) - len(data_indices.internal_model.output.diagnostic)})",
+        )
+        assert len(self._internal_input_idx) == len(
+            self._internal_output_idx,
+        ), f"Internal model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
 
     def instantiate_encoder(self, model_config: DotDict) -> None:
         input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
@@ -111,24 +128,6 @@ class AnemoiModelEncProcDec(nn.Module):
             src_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_data],
         )
-
-    def _calculate_shapes_and_indices(self, data_indices: IndexCollection) -> None:
-        self.num_input_channels = len(data_indices.internal_model.input)
-        self.num_output_channels = len(data_indices.internal_model.output)
-        self._internal_input_idx = data_indices.internal_model.input.prognostic
-        self._internal_output_idx = data_indices.internal_model.output.prognostic
-
-    def _assert_matching_indices(self, data_indices: IndexCollection) -> None:
-        assert len(self._internal_output_idx) == len(data_indices.internal_model.output.full) - len(
-            data_indices.internal_model.output.diagnostic
-        ), (
-            f"Mismatch between the internal data indices ({len(self._internal_output_idx)}) and "
-            f"the internal output indices excluding diagnostic variables "
-            f"({len(data_indices.internal_model.output.full) - len(data_indices.internal_model.output.diagnostic)})",
-        )
-        assert len(self._internal_input_idx) == len(
-            self._internal_output_idx,
-        ), f"Internal model indices must match {self._internal_input_idx} != {self._internal_output_idx}"
 
     def _run_mapper(
         self,
@@ -171,12 +170,39 @@ class AnemoiModelEncProcDec(nn.Module):
             use_reentrant=use_reentrant,
         )
 
+    def encode(
+        self, 
+        x: tuple[Tensor, Tensor],
+        batch_size: int,
+        shard_shapes: tuple[int, int],
+        model_comm_group: Optional[ProcessGroup] = None,
+    ) -> tuple[Tensor, Tensor]:
+        return self._run_mapper(
+            self.encoder, x, batch_size, shard_shapes=shard_shapes, model_comm_group=model_comm_group
+        )
+
+    def process(
+        self, 
+        x: Tensor, 
+        batch_size: int, 
+        shard_shapes: tuple[int, int], 
+        model_comm_group: Optional[ProcessGroup] = None,
+    ) -> Tensor:
+        return self._run_mapper(
+            self.processor, x, batch_size, shard_shapes=shard_shapes, model_comm_group=model_comm_group
+        )
+
+    def decode(self, x: tuple[Tensor, Tensor], batch_size: int, shard_shapes: tuple[int, int], model_comm_group):
+        return self._run_mapper(
+            self.decoder, x, batch_size, shard_shapes=shard_shapes, model_comm_group=model_comm_group
+        )
+
     def forward(self, x: Tensor, model_comm_group: Optional[ProcessGroup] = None) -> Tensor:
         batch_size = x.shape[0]
         ensemble_size = x.shape[2]
 
         # add data positional info (lat/lon)
-        x_data_latent = torch.cat(
+        x_data = torch.cat(
             (
                 einops.rearrange(x, "batch time ensemble grid vars -> (batch ensemble grid) (time vars)"),
                 self.node_attributes(self._graph_name_data, batch_size=batch_size),
@@ -184,35 +210,27 @@ class AnemoiModelEncProcDec(nn.Module):
             dim=-1,  # feature dimension
         )
 
-        x_hidden_latent = self.node_attributes(self._graph_name_hidden, batch_size=batch_size)
+        x_hidden = self.node_attributes(self._graph_name_hidden, batch_size=batch_size)
 
         # get shard shapes
-        shard_shapes_data = get_shape_shards(x_data_latent, 0, model_comm_group)
-        shard_shapes_hidden = get_shape_shards(x_hidden_latent, 0, model_comm_group)
+        shard_shapes_data = get_shape_shards(x_data, 0, model_comm_group)
+        shard_shapes_hidden = get_shape_shards(x_hidden, 0, model_comm_group)
 
-        # Run encoder
-        x_data_latent, x_latent = self._run_mapper(
-            self.encoder,
-            (x_data_latent, x_hidden_latent),
+        x_data_latent, x_hidden_latent = self.encode(
+            (x_data, x_hidden),
             batch_size=batch_size,
             shard_shapes=(shard_shapes_data, shard_shapes_hidden),
             model_comm_group=model_comm_group,
         )
 
-        x_latent_proc = self.processor(
-            x_latent,
-            batch_size=batch_size,
-            shard_shapes=shard_shapes_hidden,
-            model_comm_group=model_comm_group,
-        )
+        x_hidden_latent_proc = self.process(x_hidden_latent, batch_size, shard_shapes_hidden, model_comm_group)
 
         # add skip connection (hidden -> hidden)
-        x_latent_proc = x_latent_proc + x_latent
+        x_hidden_latent_proc = x_hidden_latent_proc + x_hidden_latent
 
         # Run decoder
-        x_out = self._run_mapper(
-            self.decoder,
-            (x_latent_proc, x_data_latent),
+        x_out = self.decode(
+            (x_hidden_latent_proc, x_data_latent),
             batch_size=batch_size,
             shard_shapes=(shard_shapes_hidden, shard_shapes_data),
             model_comm_group=model_comm_group,
