@@ -94,14 +94,8 @@ class MultiHeadSelfAttention(nn.Module):
     def set_attention_function(self):
 
         if self.use_flash_attention:
-            import flash_attn
-
-            if version.parse(flash_attn.__version__) < version.parse("2.6.0"):
-                raise SystemExit("Error: Flash-attn version is too low. Update to 2.6.0 or higher.")
-            else:
-                self.attention = FlashAttentionWrapper(self.use_alibi_slopes)
+            self.attention = FlashAttentionWrapper(self.use_alibi_slopes)
         else:
-
             self.attention = TorchAttentionWrapper()
 
     def forward(
