@@ -75,40 +75,23 @@ class MultiHeadSelfAttention(nn.Module):
         
         self.use_document_masking = False
         self.is_attn_compiled = False
-        self.compile_at_runtime=False
         self.use_flex_Attn=False
 
         if _FLEX_ATTENTION_AVAILABLE and (os.environ.get("FLEX_ATTN", "") != "" ):
             self.use_flex_Attn = True
             
         if self.use_flex_Attn:
-            if not self.compile_at_runtime:
-                LOGGER.info("Using Flex attn")
+            LOGGER.info("Using Flex attn")
                 #LOGGER.info(f"self.num_heads {self.num_heads} self.embed_dim {self.embed_dim} self.head_dim {self.head_dim} self.dropout {self.dropout_p}")
             
-                if self.use_document_masking:
+            if self.use_document_masking:
+
+                LOGGER.error("Not yet implemented")
                     
-                    def document_causal_mask(b, h, q_idx, kv_idx):
-                        causal_mask = q_idx >= kv_idx
-                        document_mask = document_id[q_idx] == document_id[kv_idx]
-                        return causal_mask & document_mask
-
-                
-                elif window_size != None:
-                    def sliding_window(b, h, q_idx, kv_idx):
-                        return abs(q_idx - kv_idx) <= window_size
-
-                    seq_len=calculate_seq_len(resolution=self.resolution)
-                    LOGGER.debug(f"grid points = {seq_len} for {self.resolution} resolution")
-
-                    # B and H can be None here because they are uniform, so the block mask can just be broadcast to these dims
-                    #TODO check if B != 1, does it have to be set?
-                    self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
-                    self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (attn blog post)
-                else:
-                    self.attention = flex_attention
-                self.attention = compile(self.attention) #Must be compiled, otherwise entire seq_len^2 aray is materilised in memory -> OOM
-                self.is_attn_compiled=True
+                def document_causal_mask(b, h, q_idx, kv_idx):
+                    causal_mask = q_idx >= kv_idx
+                    document_mask = document_id[q_idx] == document_id[kv_idx]
+                    return causal_mask & document_mask
 
             if (self.is_causal):
                 LOGGER.error("Causal not yet supported when using flex_attn (but this would be an easy add). Please rerun with 'is_causal = False'")
@@ -147,7 +130,7 @@ class MultiHeadSelfAttention(nn.Module):
             def sliding_window(b, h, q_idx, kv_idx):
                 return abs(q_idx - kv_idx) <= self.window_size[0]
             self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
-            self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (attn blog post)
+            self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (recomended in attn blog post)
             self.attention = compile(self.attention)
             self.is_attn_compiled = True
                 
@@ -156,7 +139,7 @@ class MultiHeadSelfAttention(nn.Module):
         value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
         dropout_p = self.dropout_p if self.training else 0.0
 
-        if _FLEX_ATTENTION_AVAILABLE and (os.environ.get("FLEX_ATTN", "") != "" ):
+        if self.use_flex_Attn:
             _dynamo.config.optimize_ddp = False
             out = self.attention(query, key, value)
             _dynamo.config.optimize_ddp = True
