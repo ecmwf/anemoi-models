@@ -162,18 +162,17 @@ class MaskBounding(BaseBounding):
             raise ValueError("custom_value must be a float or int")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Generate the mask based on the mask_type
+        # Apply a differentiable sigmoid approximation for the mask
         if self.mask_type == ">=":
-            mask = (x[..., self.mask_var] >= self.trs_val).float()
+            mask = torch.sigmoid(10 * (x[..., self.mask_var] - self.trs_val))
         elif self.mask_type == "<=":
-            #mask = (InputNormalizer.inverse_transform(x=x[..., self.mask_var], in_place=False) <= self.trs_val).float()
-            mask = (x[..., self.mask_var] <= self.trs_val).float()
+            mask = torch.sigmoid(-10 * (x[..., self.mask_var] - self.trs_val))
 
         # Ensure mask is the same data type as the input tensor
         mask = mask.to(x.dtype)
 
         # Apply the mask to the dependent variables (self.data_index)
-        # Retain values where mask is 1, and set custom_value where mask is 0
+        # Retain values where mask is close to 1, and set custom_value where mask is close to 0
         x[..., self.data_index] = mask * x[..., self.data_index] + (1 - mask) * self.custom_value
 
         return x
