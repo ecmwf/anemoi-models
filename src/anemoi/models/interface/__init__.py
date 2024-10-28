@@ -37,6 +37,9 @@ class AnemoiModelInterface(torch.nn.Module):
         Statistics for the data.
     metadata : dict
         Metadata for the model.
+    supporting_arrays: dict
+        Dictionary of supporting NumPy arrays to be added
+        to the checkpoint with the metadata.
     data_indices : dict
         Indices for the data.
     pre_processors : Processors
@@ -48,7 +51,7 @@ class AnemoiModelInterface(torch.nn.Module):
     """
 
     def __init__(
-        self, *, config: DotDict, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict
+        self, *, config: DotDict, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict, supporting_arrays: dict
     ) -> None:
         super().__init__()
         self.config = config
@@ -57,6 +60,7 @@ class AnemoiModelInterface(torch.nn.Module):
         self.graph_data = graph_data
         self.statistics = statistics
         self.metadata = metadata
+        self.supporting_arrays = supporting_arrays
         self.data_indices = data_indices
         self._build_model()
 
