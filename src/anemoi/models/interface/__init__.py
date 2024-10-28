@@ -51,7 +51,14 @@ class AnemoiModelInterface(torch.nn.Module):
     """
 
     def __init__(
-        self, *, config: DotDict, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict, supporting_arrays: dict
+        self,
+        *,
+        config: DotDict,
+        graph_data: HeteroData,
+        statistics: dict,
+        data_indices: dict,
+        metadata: dict,
+        supporting_arrays: dict,
     ) -> None:
         super().__init__()
         self.config = config
