@@ -45,27 +45,41 @@ class TrainableTensor(nn.Module):
 
 
 class NamedNodesAttributes(torch.nn.Module):
-    """Named Node Attributes Module."""
+    """Named Nodes Attributes information.
+    
+    Attributes
+    ----------
+    nodes_names : list[str]
+        List of nodes names in the graph.
+    num_nodes : dict[str, int]
+        Number of nodes for each group of nodes.
+    attr_ndims : dict[str, int]
+        Total dimension of node attributes (non-trainable + trainable) for each group of nodes.
+    trainable_tensors : nn.ModuleDict
+        Dictionary of trainable tensors for each group of nodes.
+    """
+    nodes_names: list[str]
+    num_nodes: dict[str, int]
+    attr_ndims: dict[str, int]
+    trainable_tensors: dict[str, TrainableTensor]
 
     def __init__(self, num_trainable_params: int, graph_data: HeteroData) -> None:
         """Initialize NamedNodesAttributes."""
         super().__init__()
 
-        self.num_trainable_params = num_trainable_params
-        self.register_fixed_attributes(graph_data)
+        self.define_fixed_attributes(graph_data, num_trainable_params)
 
         self.trainable_tensors = nn.ModuleDict()
-        for nodes_name in self.nodes_names:
-            self.register_coordinates(nodes_name, graph_data[nodes_name].x)
-            self.register_tensor(nodes_name)
+        for nodes_name, nodes in graph_data.node_items():
+            self.register_coordinates(nodes_name, nodes.x)
+            self.register_tensor(nodes_name, num_trainable_params)
 
-    def register_fixed_attributes(self, graph_data: HeteroData) -> None:
-        """Register fixed attributes."""
-        self.nodes_names = list(graph_data.node_types)
-        self.num_nodes = {nodes_name: graph_data[nodes_name].num_nodes for nodes_name in self.nodes_names}
-        self.coord_dims = {nodes_name: 2 * graph_data[nodes_name].x.shape[1] for nodes_name in self.nodes_names}
+    def define_fixed_attributes(self, graph_data: HeteroData, num_trainable_params: int) -> None:
+        """Define fixed attributes."""
+        nodes_names = list(graph_data.node_types)
+        self.num_nodes = {nodes_name: graph_data[nodes_name].num_nodes for nodes_name in nodes_names}
         self.attr_ndims = {
-            nodes_name: self.coord_dims[nodes_name] + self.num_trainable_params for nodes_name in self.nodes_names
+            nodes_name: 2 * graph_data[nodes_name].x.shape[1] + num_trainable_params for nodes_name in nodes_names
         }
 
     def register_coordinates(self, name: str, node_coords: torch.Tensor) -> None:
@@ -73,9 +87,9 @@ class NamedNodesAttributes(torch.nn.Module):
         sin_cos_coords = torch.cat([torch.sin(node_coords), torch.cos(node_coords)], dim=-1)
         self.register_buffer(f"latlons_{name}", sin_cos_coords, persistent=True)
 
-    def register_tensor(self, name: str) -> None:
+    def register_tensor(self, name: str, num_trainable_params: int) -> None:
         """Register a trainable tensor."""
-        self.trainable_tensors[name] = TrainableTensor(self.num_nodes[name], self.num_trainable_params)
+        self.trainable_tensors[name] = TrainableTensor(self.num_nodes[name], num_trainable_params)
 
     def forward(self, name: str, batch_size: int) -> Tensor:
         """Forward pass."""

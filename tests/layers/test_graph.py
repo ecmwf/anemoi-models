@@ -102,7 +102,6 @@ class TestNamedNodesAttributes:
 
         for nodes_name in self.nodes_names:
             assert isinstance(nodes_attributes.num_nodes[nodes_name], int)
-            assert nodes_attributes.coord_dims[nodes_name] == 2 * TestNamedNodesAttributes.ndim
             assert (
                 nodes_attributes.attr_ndims[nodes_name] - 2 * TestNamedNodesAttributes.ndim
                 == TestNamedNodesAttributes.num_trainable_params
