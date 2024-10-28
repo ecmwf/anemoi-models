@@ -46,7 +46,7 @@ class TrainableTensor(nn.Module):
 
 class NamedNodesAttributes(torch.nn.Module):
     """Named Nodes Attributes information.
-    
+
     Attributes
     ----------
     nodes_names : list[str]
@@ -58,6 +58,7 @@ class NamedNodesAttributes(torch.nn.Module):
     trainable_tensors : nn.ModuleDict
         Dictionary of trainable tensors for each group of nodes.
     """
+
     nodes_names: list[str]
     num_nodes: dict[str, int]
     attr_ndims: dict[str, int]
