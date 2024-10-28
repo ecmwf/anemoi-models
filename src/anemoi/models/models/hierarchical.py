@@ -79,6 +79,11 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
+        print(
+            input_dim,
+            getattr(self, f"latlons_{self._graph_hidden_names[0]}").shape[1],
+            self.hidden_dims[self._graph_hidden_names[0]],
+        )
         # Encoder data -> hidden
         self.encoder = instantiate(
             model_config.model.encoder,
@@ -148,7 +153,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                 model_config.model.decoder,
                 in_channels_src=self.hidden_dims[src_nodes_name],
                 in_channels_dst=self.hidden_dims[dst_nodes_name],
-                hidden_dim=self.hidden_dims[dst_nodes_name],
+                hidden_dim=self.hidden_dims[src_nodes_name],
                 out_channels_dst=self.hidden_dims[dst_nodes_name],
                 sub_graph=self._graph_data[(src_nodes_name, "to", dst_nodes_name)],
                 src_grid_size=self._hidden_grid_sizes[src_nodes_name],
@@ -159,12 +164,20 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         self.decoder = instantiate(
             model_config.model.decoder,
             in_channels_src=self.hidden_dims[self._graph_hidden_names[0]],
-            in_channels_dst=self.hidden_dims[self._graph_hidden_names[0]],
+            in_channels_dst=input_dim,
             hidden_dim=self.hidden_dims[self._graph_hidden_names[0]],
             out_channels_dst=self.num_output_channels,
             sub_graph=self._graph_data[(self._graph_hidden_names[0], "to", self._graph_name_data)],
             src_grid_size=self._hidden_grid_sizes[self._graph_hidden_names[0]],
             dst_grid_size=self._data_grid_size,
+        )
+
+        # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
+        self.boundings = nn.ModuleList(
+            [
+                instantiate(cfg, name_to_index=self.data_indices.internal_model.output.name_to_index)
+                for cfg in getattr(model_config.model, "bounding", [])
+            ]
         )
 
     def _define_tensor_sizes(self, config: DotDict) -> None:
@@ -186,7 +199,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
         for hidden in self._graph_hidden_names:
             self.trainable_hidden[hidden] = TrainableTensor(
-                trainable_size=self.hidden_dims[hidden], tensor_size=self._hidden_grid_sizes[hidden]
+                trainable_size=self.trainable_hidden_size, tensor_size=self._hidden_grid_sizes[hidden]
             )
 
     def forward(self, x: Tensor, model_comm_group: Optional[ProcessGroup] = None) -> Tensor:
@@ -215,6 +228,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         for hidden, x_latent in x_trainable_hiddens.items():
             shard_shapes_hiddens[hidden] = get_shape_shards(x_latent, 0, model_comm_group)
 
+        # print('Input: ', x_trainable_data.shape, x_trainable_hiddens[self._graph_hidden_names[0]].shape, shard_shapes_data, shard_shapes_hiddens[self._graph_hidden_names[0]])
+
         # Run encoder
         x_data_latent, curr_latent = self._run_mapper(
             self.encoder,
@@ -223,6 +238,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
             shard_shapes=(shard_shapes_data, shard_shapes_hiddens[self._graph_hidden_names[0]]),
             model_comm_group=model_comm_group,
         )
+
+        # print('After encoding: ', x_data_latent.shape, curr_latent.shape)
 
         # Run processor
         x_encoded_latents = {}
@@ -241,6 +258,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                     shard_shapes=shard_shapes_hiddens[src_hidden_name],
                     model_comm_group=model_comm_group,
                 )
+            # print(f'After level of {src_hidden_name}: ', curr_latent.shape)
 
             # store latents for skip connections
             x_skip[src_hidden_name] = curr_latent
@@ -254,6 +272,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                 model_comm_group=model_comm_group,
             )
 
+            # print(f'After downscaling of {src_hidden_name}: ', curr_latent.shape)
+
         # Processing hidden-most level
         if self.level_process:
             curr_latent = self.down_level_processor[dst_hidden_name](
@@ -262,6 +282,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                 shard_shapes=shard_shapes_hiddens[dst_hidden_name],
                 model_comm_group=model_comm_group,
             )
+
+        # print(f'After level of {dst_hidden_name}: ', curr_latent.shape)
 
         ## Upscale
         for i in range(self.num_hidden - 1, 0, -1):
@@ -277,8 +299,10 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                 model_comm_group=model_comm_group,
             )
 
+            # print(f'After upscaling of {src_hidden_name}: ', curr_latent.shape)
+
             # Add skip connections
-            curr_latent += x_skip[dst_hidden_name]
+            curr_latent = curr_latent + x_skip[dst_hidden_name]
 
             # Processing at same level
             if self.level_process:
@@ -289,6 +313,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
                     model_comm_group=model_comm_group,
                 )
 
+            # print(f'After level of {dst_hidden_name}: ', curr_latent.shape)
+
         # Run decoder
         x_out = self._run_mapper(
             self.decoder,
@@ -297,6 +323,8 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
             shard_shapes=(shard_shapes_hiddens[self._graph_hidden_names[0]], shard_shapes_data),
             model_comm_group=model_comm_group,
         )
+
+        # print('After decoding: ', x_out.shape)
 
         x_out = (
             einops.rearrange(
