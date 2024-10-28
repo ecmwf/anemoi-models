@@ -67,13 +67,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self.instantiate_processor(model_config)
         self.instantiate_decoder(model_config)
 
-        # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
-        self.boundings = nn.ModuleList(
-            [
-                instantiate(cfg, name_to_index=data_indices.internal_model.output.name_to_index)
-                for cfg in getattr(model_config.model, "bounding", [])
-            ]
-        )
+        self.instantiate_boundings(model_config, data_indices)
 
     def _calculate_shapes_and_indices(self, data_indices: IndexCollection) -> None:
         self.num_input_channels = len(data_indices.internal_model.input)
@@ -129,6 +123,15 @@ class AnemoiModelEncProcDec(nn.Module):
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_data],
         )
 
+    def instantiate_boundings(self, model_config: DotDict, data_indices: IndexCollection) -> None:
+        # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
+        self.boundings = nn.ModuleList(
+            [
+                instantiate(cfg, name_to_index=data_indices.internal_model.output.name_to_index)
+                for cfg in getattr(model_config.model, "bounding", [])
+            ]
+        )
+
     def _run_mapper(
         self,
         mapper: nn.Module,
@@ -171,7 +174,7 @@ class AnemoiModelEncProcDec(nn.Module):
         )
 
     def encode(
-        self, 
+        self,
         x: tuple[Tensor, Tensor],
         batch_size: int,
         shard_shapes: tuple[int, int],
@@ -182,10 +185,10 @@ class AnemoiModelEncProcDec(nn.Module):
         )
 
     def process(
-        self, 
-        x: Tensor, 
-        batch_size: int, 
-        shard_shapes: tuple[int, int], 
+        self,
+        x: Tensor,
+        batch_size: int,
+        shard_shapes: tuple[int, int],
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> Tensor:
         return self._run_mapper(
@@ -196,6 +199,13 @@ class AnemoiModelEncProcDec(nn.Module):
         return self._run_mapper(
             self.decoder, x, batch_size, shard_shapes=shard_shapes, model_comm_group=model_comm_group
         )
+
+    def bound_output(self, x: torch.Tensor) -> torch.Tensor:
+        for bounding in self.boundings:
+            # bounding performed in the order specified in the config file
+            x = bounding(x)
+
+        return x
 
     def forward(self, x: Tensor, model_comm_group: Optional[ProcessGroup] = None) -> Tensor:
         batch_size = x.shape[0]
@@ -250,8 +260,6 @@ class AnemoiModelEncProcDec(nn.Module):
         # residual connection (just for the prognostic variables)
         x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
 
-        for bounding in self.boundings:
-            # bounding performed in the order specified in the config file
-            x_out = bounding(x_out)
+        x_out = self.bound_output(x_out, batch_size, ensemble_size)
 
         return x_out
