@@ -44,7 +44,7 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
-        strategy: str = "shard_heads",
+        shard_strategy: str = "shard_heads",
     ):
         super().__init__()
 
@@ -58,7 +58,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.window_size = (window_size, window_size)  # flash attention
         self.dropout_p = dropout_p
         self.is_causal = is_causal
-        self.strategy = strategy
+        self.shard_strategy = shard_strategy
 
         self.lin_qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
         self.attention = attn_func
@@ -66,8 +66,8 @@ class MultiHeadSelfAttention(nn.Module):
         if not _FLASH_ATTENTION_AVAILABLE:
             LOGGER.warning("Flash attention not available, falling back to pytorch scaled_dot_product_attention")
 
-        if strategy not in ["shard_heads", "shard_sequence"]:
-            raise ValueError(f"Invalid strategy: {strategy}")
+        if shard_strategy not in ["shard_heads", "shard_sequence"]:
+            raise ValueError(f"Invalid shard_strategy: {shard_strategy}")
 
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
@@ -79,7 +79,7 @@ class MultiHeadSelfAttention(nn.Module):
                 model_comm_group.size() == 1 or batch_size == 1
             ), "Only batch size of 1 is supported when model is sharded accross GPUs"
 
-        if self.strategy == "shard_sequence":
+        if self.shard_strategy == "shard_sequence":
             assert _FLASH_ATTENTION_AVAILABLE, "Flash attention is required for shard_sequence strategy"
             assert (
                 shapes[-1][0] // 2 >= self.window_size[0]
@@ -123,7 +123,7 @@ class MultiHeadSelfAttention(nn.Module):
                 for t in (query, key, value)
             )
 
-        if self.strategy == "shard_heads":
+        if self.shard_strategy == "shard_heads":
             query = shard_heads(query, shapes=shapes, mgroup=model_comm_group)
             key = shard_heads(key, shapes=shapes, mgroup=model_comm_group)
             value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
@@ -145,9 +145,9 @@ class MultiHeadSelfAttention(nn.Module):
                 dropout_p=dropout_p,
             )  # expects (batch heads grid variable) format
 
-        if self.strategy == "shard_sequence":
+        if self.shard_strategy == "shard_sequence":
             out = out[:, :, halo_size_left : out.shape[-2] - halo_size_right, :]  # remove halos
-        if self.strategy == "shard_heads":
+        if self.shard_strategy == "shard_heads":
             out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
         out = einops.rearrange(out, "batch heads grid vars -> (batch grid) (heads vars)")
 
