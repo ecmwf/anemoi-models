@@ -12,6 +12,7 @@ from typing import Optional
 
 import einops
 import torch
+
 from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
 from torch import Tensor
@@ -66,7 +67,9 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
+
         self.multi_step = model_config.training.multistep_input
+
         self._define_tensor_sizes(model_config)
 
         # Create trainable tensors
