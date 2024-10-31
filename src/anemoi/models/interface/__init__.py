@@ -133,17 +133,19 @@ class AnemoiModelInterface(torch.nn.Module):
             assert (
                 len(batch.shape) == 4
             ), f"The input tensor has an incorrect shape: expected a 4-dimensional tensor, got {batch.shape}!"
-            x = self.pre_processors_state(batch[:, 0 : self.multi_step, ...], in_place=False)
+            x = self.pre_processors_state(
+                batch[:, 0 : self.multi_step, ...], in_place=False, data_index=self.data_indices.data.input.full
+            )
 
             # Dimensions are
             # batch, timesteps, horizontal space, variables
-            x = x[..., None, :, :]  # add dummy ensemble dimension as 3rd index
+            x = x[:, :, None, ...]  # add dummy ensemble dimension as 3rd index
             if self.prediction_strategy == "tendency":
                 tendency_hat = self(x)
                 y_hat = self.add_tendency_to_state(x[:, -1, ...], tendency_hat)
             else:
                 y_hat = self(x)
-                y_hat = self.post_processors_state(y_hat, in_place=False)
+                y_hat = self.post_processors_state(y_hat, in_place=False, data_index=self.data_indices.data.output.full)
 
         return y_hat
 
@@ -153,9 +155,9 @@ class AnemoiModelInterface(torch.nn.Module):
         Parameters
         ----------
         state_inp : torch.Tensor
-            The input state tensor with full input variables and unprocessed.
+            The normalized input state tensor with full input variables.
         tendency : torch.Tensor
-            The tendency tensor output from model.
+            The normalized tendency tensor output from model.
 
         Returns
         -------
@@ -173,8 +175,10 @@ class AnemoiModelInterface(torch.nn.Module):
             data_index=self.data_indices.data.output.diagnostic,
         )
 
-        state_outp[..., self.data_indices.model.output.prognostic] += state_inp[
-            ..., self.data_indices.model.input.prognostic
-        ]
+        state_outp[..., self.data_indices.model.output.prognostic] += self.post_processors_state(
+            state_inp[..., self.data_indices.model.input.prognostic],
+            in_place=False,
+            data_index=self.data_indices.data.input.prognostic,
+        )
 
         return state_outp
