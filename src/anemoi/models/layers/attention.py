@@ -77,7 +77,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.num_heads = num_heads
         self.embed_dim = embed_dim
         self.head_dim = embed_dim // num_heads  # q k v
-        self.window_size = (window_size, window_size)  # flash attention
+        self.window_size = window_size
         self.dropout_p = dropout_p
         self.is_causal = is_causal
         self.softcap = softcap
@@ -92,6 +92,8 @@ class MultiHeadSelfAttention(nn.Module):
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
     def set_attention_function(self):
+        self.attention = FlexAttentionWrapper()
+        return 
 
         if self.use_flash_attention:
             self.attention = FlashAttentionWrapper(self.use_alibi_slopes)
@@ -133,7 +135,7 @@ class MultiHeadSelfAttention(nn.Module):
             window_size=self.window_size,
             dropout_p=dropout_p,
             softcap=self.softcap,
-            alibi_slopes=self.alibi_slopes,
+            #alibi_slopes=self.alibi_slopes,
         )
 
         out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
@@ -174,6 +176,64 @@ class TorchAttentionWrapper(nn.Module):
             dropout_p=dropout_p,
         )
 
+class FlexAttentionWrapper(nn.Module):
+    """Wrapper for Pytorch Flex attention."""
+
+    def __init__(self):
+        super().__init__()
+        #self.use_alibi_slopes = use_alibi_slopes
+
+        if version.parse(torch.__version__) < version.parse("2.5.0"):
+            raise SystemExit("Error: torch version is too low. Update to 2.5.0 or higher to use Flex Attention.")
+
+        # we compile flex attn once at the first iteration
+        # This is bc we need to know the seq len to compute the mask mod for sliding window
+        self.is_attn_compiled = False
+
+        #if (self.is_causal):
+        #    raise SystemExit("Causal not yet supported when using flex_attn (but this would be an easy add). Please rerun with 'is_causal = False'")
+        #if (self.dropout_p != 0.0):
+        #    raise SystemExit("Dropout not yet supported when using flex_attn. Please rerun with 'dropout_p = 0.0'")
+
+    def forward(
+        self,
+        query,
+        key,
+        value,
+        batch_size: int,
+        causal: bool = False,
+        window_size: int = None,
+        dropout_p: float = 0.0,
+        softcap: float = None,
+        alibi_slopes: torch.Tensor = None,
+    ):
+       
+        #This assumes seq_len never changes
+        #across iterations and stages
+        #could add something like
+        #   if query.shape[2] != prev_seq_len:
+        #       self.is_attn_compiled = False
+        #To trigger a recompilation
+        if (not self.is_attn_compiled):
+            from torch.nn.attention.flex_attention import flex_attention, create_block_mask #should this be after the version check?
+            import functools
+
+            def sliding_window(b, h, q_idx, kv_idx):
+                return abs(q_idx - kv_idx) <= window_size
+
+            seq_len=query.shape[2]
+            self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
+            self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (recomended in attn blog post)
+            self.attention = torch.compile(self.attention)
+            self.is_attn_compiled = True
+
+        #TODO test how this impacts scaling at large model counts
+        torch._dynamo.config.optimize_ddp = False
+        out = self.attention(query, key, value)
+        torch._dynamo.config.optimize_ddp = True
+
+        return out
+
 
 class FlashAttentionWrapper(nn.Module):
     """Wrapper for Flash attention."""
@@ -211,7 +271,7 @@ class FlashAttentionWrapper(nn.Module):
             key,
             value,
             causal=False,
-            window_size=window_size,
+            window_size=(window_size,window_size),
             dropout_p=dropout_p,
             softcap=softcap,
             alibi_slopes=alibi_slopes,
