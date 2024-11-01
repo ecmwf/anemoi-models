@@ -1,11 +1,12 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2024 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-#
+
 
 from __future__ import annotations
 
@@ -93,16 +94,9 @@ class MultiHeadSelfAttention(nn.Module):
     def set_attention_function(self):
 
         if self.use_flash_attention:
-            import flash_attn
-
-            if version.parse(flash_attn.__version__) < version.parse("2.6.0"):
-                raise SystemExit("Error: Flash-attn version is too low. Update to 2.6.0 or higher.")
-            else:
-                self.attention = flash_attn.flash_attn_func
+            self.attention = FlashAttentionWrapper(self.use_alibi_slopes)
         else:
-            from torch.nn.functional import scaled_dot_product_attention
-
-            self.attention = scaled_dot_product_attention
+            self.attention = TorchAttentionWrapper()
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -130,38 +124,99 @@ class MultiHeadSelfAttention(nn.Module):
         value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
         dropout_p = self.dropout_p if self.training else 0.0
 
-        if self.use_flash_attention:
-            query, key, value = (
-                einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
-            )
-
-            alibi_slopes = self.alibi_slopes.repeat(batch_size, 1).to(query.device) if self.use_alibi_slopes else None
-
-            out = self.attention(
-                query,
-                key,
-                value,
-                causal=False,
-                window_size=self.window_size,
-                dropout_p=dropout_p,
-                softcap=self.softcap,
-                alibi_slopes=alibi_slopes,
-            )
-            out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
-        else:
-            out = self.attention(
-                query,
-                key,
-                value,
-                is_causal=False,
-                dropout_p=dropout_p,
-            )
+        out = self.attention(
+            query,
+            key,
+            value,
+            batch_size,
+            causal=False,
+            window_size=self.window_size,
+            dropout_p=dropout_p,
+            softcap=self.softcap,
+            alibi_slopes=self.alibi_slopes,
+        )
 
         out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
         out = einops.rearrange(out, "batch heads grid vars -> (batch grid) (heads vars)")
 
         out = self.projection(out)
 
+        return out
+
+
+class TorchAttentionWrapper(nn.Module):
+    """Wrapper for Pytorch dot product attention"""
+
+    def __init__(self):
+        super().__init__()
+
+        from torch.nn.functional import scaled_dot_product_attention
+
+        self.attention = scaled_dot_product_attention
+
+    def forward(
+        self,
+        query,
+        key,
+        value,
+        batch_size: int,
+        causal=False,
+        window_size=None,
+        dropout_p=0.0,
+        softcap=None,
+        alibi_slopes=None,
+    ):
+        return self.attention(
+            query,
+            key,
+            value,
+            is_causal=False,
+            dropout_p=dropout_p,
+        )
+
+
+class FlashAttentionWrapper(nn.Module):
+    """Wrapper for Flash attention."""
+
+    def __init__(self, use_alibi_slopes: bool):
+        super().__init__()
+        self.use_alibi_slopes = use_alibi_slopes
+        import flash_attn
+
+        if version.parse(flash_attn.__version__) < version.parse("2.6.0"):
+            raise SystemExit("Error: Flash-attn version is too low. Update to 2.6.0 or higher.")
+        else:
+            self.attention = flash_attn.flash_attn_func
+
+    def forward(
+        self,
+        query,
+        key,
+        value,
+        batch_size: int,
+        causal: bool = False,
+        window_size: int = None,
+        dropout_p: float = 0.0,
+        softcap: float = None,
+        alibi_slopes: torch.Tensor = None,
+    ):
+        query, key, value = (
+            einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
+        )
+
+        alibi_slopes = alibi_slopes.repeat(batch_size, 1).to(query.device) if self.use_alibi_slopes else None
+
+        out = self.attention(
+            query,
+            key,
+            value,
+            causal=False,
+            window_size=window_size,
+            dropout_p=dropout_p,
+            softcap=softcap,
+            alibi_slopes=alibi_slopes,
+        )
+        out = einops.rearrange(out, "batch grid heads vars -> batch heads grid vars")
         return out
 
 

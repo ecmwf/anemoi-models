@@ -1,11 +1,12 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2024 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-#
+
 
 import logging
 from typing import Optional
@@ -108,7 +109,7 @@ class AnemoiModelEncProcDec(nn.Module):
         # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
         self.boundings = nn.ModuleList(
             [
-                instantiate(cfg, name_to_index=self.data_indices.model.output.name_to_index)
+                instantiate(cfg, name_to_index=self.data_indices.internal_model.output.name_to_index)
                 for cfg in getattr(model_config.model, "bounding", [])
             ]
         )
