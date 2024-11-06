@@ -207,6 +207,13 @@ class FlexAttentionWrapper(nn.Module):
         softcap: float = None,
         alibi_slopes: torch.Tensor = None,
     ):
+
+        if (alibi_slopes != None): 
+            SystemExit("Error. Alibi_slopes not yet implemented in FlexAttn.")
+        if (softcap != None):
+            SystemExit("Error. Softcap not yet implemented in FlexAttn")
+        if (dropout_p != 0.0):
+            SystemExit("Error. Dropout not yet implemented in FlexAttn")
        
         #This assumes seq_len never changes
         #across iterations and stages
@@ -218,8 +225,16 @@ class FlexAttentionWrapper(nn.Module):
             from torch.nn.attention.flex_attention import flex_attention, create_block_mask #should this be after the version check?
             import functools
 
-            def sliding_window(b, h, q_idx, kv_idx):
+            def causal_mask(b, h, q_idx, kv_idx):
+                return q_idx >= kv_idx
+
+            def sliding_window_mask(b, h, q_idx, kv_idx):
                 return abs(q_idx - kv_idx) <= window_size
+
+            def sliding_window_causal_mask(b, h, q_idx, kv_idx):
+                causal_mask = q_idx >= kv_idx
+                windowed_mask = (q_idx - kv_idx <= window_size)
+                return causal_mask & windowed_mask
 
             seq_len=query.shape[2]
             self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
