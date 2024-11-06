@@ -8,6 +8,8 @@
 #
 
 import uuid
+from typing import Optional
+from torch.distributed.distributed_c10d import ProcessGroup
 
 import torch
 from anemoi.utils.config import DotDict
@@ -81,8 +83,11 @@ class AnemoiModelInterface(torch.nn.Module):
             _recursive_=False,  # Disables recursive instantiation by Hydra
         )
 
-        # Use the forward method of the model directly
-        self.forward = self.model.forward
+    
+    def forward(self, x: torch.Tensor, 
+                model_comm_group: Optional[ProcessGroup] = None) -> torch.Tensor:
+        """Forward pass for the model."""
+        return self.model(x, model_comm_group=model_comm_group)
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
         """Prediction step for the model.
