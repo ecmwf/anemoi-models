@@ -113,7 +113,7 @@ class BaseImputer(BasePreprocessor, ABC):
         if not self.training:
             self.nan_locations = None
 
-        # Initilialize mask if not cached.
+        # Initialise mask if not cached.
         if self.nan_locations is None:
             # The mask is only saved for the last two dimensions (grid, variable)
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
