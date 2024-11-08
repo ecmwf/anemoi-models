@@ -142,7 +142,6 @@ class TransformerMapperBlock(TransformerProcessorBlock):
         self,
         x: OptPairTensor,
         shapes: list,
-        noise_level,
         batch_size: int,
         model_comm_group: Optional[ProcessGroup] = None,
     ) -> Tensor:

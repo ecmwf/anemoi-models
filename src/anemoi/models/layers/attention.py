@@ -89,7 +89,7 @@ class MultiHeadSelfAttention(nn.Module):
         value: Tensor,
         shapes: list,
         batch_size: int,
-        model_comm_group: Optional[ProcessGroup],
+        model_comm_group: Optional[ProcessGroup] = None,
     ) -> Tensor:
         if model_comm_group:
             assert (
@@ -122,7 +122,9 @@ class MultiHeadSelfAttention(nn.Module):
                 key = key.unsqueeze(-3)
                 value = value.unsqueeze(-3)
                 keyvalue = torch.cat((key, value), dim=-3)
-                query, keyvalue = self.rotary_emb(query, keyvalue, max_seqlen=max(keyvalue.shape[1], query.shape[1]))
+                query, keyvalue = self.rotary_emb(
+                    query, keyvalue, max_seqlen=max(keyvalue.shape[1], query.shape[1])
+                )  # assumption seq const
                 key = keyvalue[:, :, 0, ...]
                 value = keyvalue[:, :, 1, ...]
             out = self.attention(query, key, value, causal=False, window_size=self.window_size, dropout_p=dropout_p)
@@ -148,7 +150,7 @@ class MultiHeadSelfAttention(nn.Module):
         return self.attention_computation(query, key, value, shapes, batch_size, model_comm_group)
 
 
-class MultiHeadrossAttention(MultiHeadSelfAttention):
+class MultiHeadCrossAttention(MultiHeadSelfAttention):
     """Multi Head Cross Attention Pytorch Layer."""
 
     def __init__(self, *args, **kwargs):
