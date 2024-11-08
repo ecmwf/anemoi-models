@@ -86,6 +86,8 @@ class MultiHeadSelfAttention(nn.Module):
         if self.use_alibi_slopes is not None:
             self.alibi_slopes = get_alibi_slopes(num_heads)
             assert self.alibi_slopes.shape[0] == num_heads
+        else:
+            self.alibi_slopes = None
 
         self.lin_qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias)
 
