@@ -109,7 +109,11 @@ class BaseImputer(BasePreprocessor, ABC):
         if not in_place:
             x = x.clone()
 
-        # Initilialize mask once
+        # Reset NaN locations outside of training for validation and inference.
+        if not self.training:
+            self.nan_locations = None
+
+        # Initilialize mask if not cached.
         if self.nan_locations is None:
             # The mask is only saved for the last two dimensions (grid, variable)
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
