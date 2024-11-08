@@ -33,6 +33,7 @@ Keep it human-readable, your future self will thank you!
 - ci: extened python versions to include 3.11 and 3.12 [#66](https://github.com/ecmwf/anemoi-models/pull/66)
 - Update copyright notice
 - Fix `__version__` import in init
+- Fix documentation copyrights notice [#70](https://github.com/ecmwf/anemoi-models/pull/70)
 
 ### Removed
 
