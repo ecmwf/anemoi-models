@@ -140,7 +140,7 @@ fixture_combinations = (
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_imputer_not_inplace(imputer_fixture, data_fixture, request) -> None:
     """Check that the imputer does not modify the input tensor when in_place=False."""
@@ -153,7 +153,7 @@ def test_imputer_not_inplace(imputer_fixture, data_fixture, request) -> None:
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_imputer_inplace(imputer_fixture, data_fixture, request) -> None:
     """Check that the imputer modifies the input tensor when in_place=True."""
@@ -167,7 +167,7 @@ def test_imputer_inplace(imputer_fixture, data_fixture, request) -> None:
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_transform_with_nan(imputer_fixture, data_fixture, request):
     """Check that the imputer correctly transforms a tensor with NaNs."""
@@ -179,7 +179,7 @@ def test_transform_with_nan(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_transform_with_nan_small(imputer_fixture, data_fixture, request):
     """Check that the imputer correctly transforms a tensor with NaNs."""
@@ -199,7 +199,7 @@ def test_transform_with_nan_small(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_transform_with_nan_inference(imputer_fixture, data_fixture, request):
     """Check that the imputer correctly transforms a tensor with NaNs in inference."""
@@ -227,7 +227,7 @@ def test_transform_with_nan_inference(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_transform_noop(imputer_fixture, data_fixture, request):
     """Check that the imputer does not modify a tensor without NaNs."""
@@ -240,7 +240,7 @@ def test_transform_noop(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_inverse_transform(imputer_fixture, data_fixture, request):
     """Check that the imputer correctly inverts the transformation."""
@@ -254,7 +254,7 @@ def test_inverse_transform(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_mask_saving(imputer_fixture, data_fixture, request):
     """Check that the imputer saves the NaN mask correctly."""
@@ -267,7 +267,7 @@ def test_mask_saving(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_reuse_imputer(imputer_fixture, data_fixture, request):
     """Check that the imputer reuses the mask correctly on subsequent runs."""
@@ -283,7 +283,7 @@ def test_reuse_imputer(imputer_fixture, data_fixture, request):
 
 @pytest.mark.parametrize(
     ("imputer_fixture", "data_fixture"),
-    [fixture_combinations],
+    fixture_combinations,
 )
 def test_inference_imputer(imputer_fixture, data_fixture, request):
     """Check that the imputer resets its mask during inference."""
