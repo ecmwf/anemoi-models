@@ -55,6 +55,13 @@ class NamedNodesAttributes(nn.Module):
         Total dimension of node attributes (non-trainable + trainable) for each group of nodes.
     trainable_tensors : nn.ModuleDict
         Dictionary of trainable tensors for each group of nodes.
+
+    Methods
+    -------
+    get_coordinates(self, name: str) -> Tensor
+        Get the coordinates of a set of nodes.
+    forward( self, name: str, batch_size: int) -> Tensor
+        Get the node attributes to be passed trough the graph neural network.
     """
 
     num_nodes: dict[str, int]
@@ -85,11 +92,22 @@ class NamedNodesAttributes(nn.Module):
         sin_cos_coords = torch.cat([torch.sin(node_coords), torch.cos(node_coords)], dim=-1)
         self.register_buffer(f"latlons_{name}", sin_cos_coords, persistent=True)
 
+    def get_coordinates(self, name: str) -> Tensor:
+        """Return original coordinates."""    
+        sin_cos_coords = getattr(self, f"latlons_{name}")
+        ndim = sin_cos_coords.shape[1] // 2
+        sin_values = sin_cos_coords[:, :ndim]
+        cos_values = sin_cos_coords[:, ndim:]
+        return torch.atan2(sin_values, cos_values)
+
     def register_tensor(self, name: str, num_trainable_params: int) -> None:
         """Register a trainable tensor."""
         self.trainable_tensors[name] = TrainableTensor(self.num_nodes[name], num_trainable_params)
 
     def forward(self, name: str, batch_size: int) -> Tensor:
-        """Forward pass."""
+        """Returns the node attributes to be passed trough the graph neural network.
+        
+        It includes both the coordinates and the trainable parameters.
+        """
         latlons = getattr(self, f"latlons_{name}")
         return self.trainable_tensors[name](latlons, batch_size)
