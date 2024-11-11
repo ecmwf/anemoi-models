@@ -44,7 +44,7 @@ class TrainableTensor(nn.Module):
         )
 
 
-class NamedNodesAttributes(torch.nn.Module):
+class NamedNodesAttributes(nn.Module):
     """Named Nodes Attributes information.
 
     Attributes
@@ -83,7 +83,7 @@ class NamedNodesAttributes(torch.nn.Module):
             nodes_name: 2 * graph_data[nodes_name].x.shape[1] + num_trainable_params for nodes_name in nodes_names
         }
 
-    def register_coordinates(self, name: str, node_coords: torch.Tensor) -> None:
+    def register_coordinates(self, name: str, node_coords: Tensor) -> None:
         """Register coordinates."""
         sin_cos_coords = torch.cat([torch.sin(node_coords), torch.cos(node_coords)], dim=-1)
         self.register_buffer(f"latlons_{name}", sin_cos_coords, persistent=True)
