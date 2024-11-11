@@ -49,8 +49,6 @@ class NamedNodesAttributes(nn.Module):
 
     Attributes
     ----------
-    nodes_names : list[str]
-        List of nodes names in the graph.
     num_nodes : dict[str, int]
         Number of nodes for each group of nodes.
     attr_ndims : dict[str, int]
@@ -59,7 +57,6 @@ class NamedNodesAttributes(nn.Module):
         Dictionary of trainable tensors for each group of nodes.
     """
 
-    nodes_names: list[str]
     num_nodes: dict[str, int]
     attr_ndims: dict[str, int]
     trainable_tensors: dict[str, TrainableTensor]
