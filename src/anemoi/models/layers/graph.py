@@ -93,7 +93,7 @@ class NamedNodesAttributes(nn.Module):
         self.register_buffer(f"latlons_{name}", sin_cos_coords, persistent=True)
 
     def get_coordinates(self, name: str) -> Tensor:
-        """Return original coordinates."""    
+        """Return original coordinates."""
         sin_cos_coords = getattr(self, f"latlons_{name}")
         ndim = sin_cos_coords.shape[1] // 2
         sin_values = sin_cos_coords[:, :ndim]
@@ -106,7 +106,7 @@ class NamedNodesAttributes(nn.Module):
 
     def forward(self, name: str, batch_size: int) -> Tensor:
         """Returns the node attributes to be passed trough the graph neural network.
-        
+
         It includes both the coordinates and the trainable parameters.
         """
         latlons = getattr(self, f"latlons_{name}")
