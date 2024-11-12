@@ -24,6 +24,7 @@ from torch_geometric.typing import PairTensor
 
 from anemoi.models.distributed.graph import gather_tensor
 from anemoi.models.distributed.graph import shard_tensor
+from anemoi.models.distributed.khop_edges import sort_edges_1hop_chunks
 from anemoi.models.distributed.khop_edges import sort_edges_1hop_sharding
 from anemoi.models.distributed.shapes import change_channels_in_shape
 from anemoi.models.distributed.shapes import get_shape_shards
@@ -252,24 +253,40 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
         size = (sum(x[0] for x in shard_shapes[0]), sum(x[0] for x in shard_shapes[1]))
         edge_attr = self.trainable(self.edge_attr, batch_size)
         edge_index = self._expand_edges(self.edge_index_base, self.edge_inc, batch_size)
-        shapes_edge_attr = get_shape_shards(edge_attr, 0, model_comm_group)
-        edge_attr = shard_tensor(edge_attr, 0, shapes_edge_attr, model_comm_group)
 
         x_src, x_dst, shapes_src, shapes_dst = self.pre_process(x, shard_shapes, model_comm_group)
 
-        (x_src, x_dst), edge_attr = self.proc(
-            (x_src, x_dst),
-            edge_attr,
-            edge_index,
-            (shapes_src, shapes_dst, shapes_edge_attr),
-            batch_size,
-            model_comm_group,
-            size=size,
-        )
+        # this part should go into the gradient checkpoint ---- start
 
-        x_dst = self.post_process(x_dst, shapes_dst, model_comm_group)
+        num_chunks = 2  # make configurable
+        node_idx_list = torch.arange(size[1], device=x_dst.device).tensor_split(num_chunks)
+        edge_attr_list, edge_index_list = sort_edges_1hop_chunks(size, edge_attr, edge_index, num_chunks=num_chunks)
 
-        return x_dst
+        for i, (node_idx, edge_index_chunk, edge_attr_chunk) in enumerate(
+            zip(node_idx_list, edge_index_list, edge_attr_list)
+        ):
+
+            shapes_edge_attr = get_shape_shards(edge_attr_chunk, 0, model_comm_group)
+            edge_attr = shard_tensor(edge_attr_chunk, 0, shapes_edge_attr, model_comm_group)
+
+            (x_src, x_dst_chunk), edge_attr = self.proc(
+                (x_src, x_dst),
+                edge_attr_chunk,
+                edge_index_chunk,
+                (shapes_src, shapes_dst, shapes_edge_attr),
+                batch_size,
+                model_comm_group,
+                size=size,
+            )
+            if i == 0:
+                x_dst_new = torch.zeros_like(x_dst, device=x_dst.device)
+            x_dst_new[node_idx] += x_dst_chunk[node_idx]  # only add the nodes with correct update
+
+        # this part should go into the gradient checkpoint ---- end
+
+        x_dst_new = self.post_process(x_dst_new, shapes_dst, model_comm_group)
+
+        return x_dst_new
 
 
 class GraphTransformerForwardMapper(ForwardMapperPreProcessMixin, GraphTransformerBaseMapper):

@@ -86,7 +86,11 @@ def sort_edges_1hop_sharding(
 
 
 def sort_edges_1hop_chunks(
-    num_nodes: Union[int, tuple[int, int]], edge_attr: Tensor, edge_index: Adj, num_chunks: int
+    num_nodes: Union[int, tuple[int, int]],
+    edge_attr: Tensor,
+    edge_index: Adj,
+    num_chunks: int,
+    relabel_nodes: bool = False,
 ) -> tuple[list[Tensor], list[Adj]]:
     """Rearanges edges into 1 hop neighbourhood chunks.
 
@@ -100,7 +104,8 @@ def sort_edges_1hop_chunks(
         edge index
     num_chunks : int
         number of chunks used if mgroup is None
-
+    relabel_nodes : bool, optional
+        relabel nodes, by default False
     Returns
     -------
     tuple[list[Tensor], list[Adj]]
@@ -116,13 +121,16 @@ def sort_edges_1hop_chunks(
     edge_attr_list = []
     for node_chunk in node_chunks:
         if isinstance(num_nodes, int):
-            edge_attr_chunk, edge_index_chunk = get_k_hop_edges(node_chunk, edge_attr, edge_index)
+            edge_attr_chunk, edge_index_chunk = get_k_hop_edges(
+                node_chunk, edge_attr, edge_index, relabel_nodes=relabel_nodes
+            )
         else:
             edge_index_chunk, edge_attr_chunk = bipartite_subgraph(
                 (nodes_src, node_chunk),
                 edge_index,
                 edge_attr,
                 size=(num_nodes[0], num_nodes[1]),
+                relabel_nodes=relabel_nodes,
             )
         edge_index_list.append(edge_index_chunk)
         edge_attr_list.append(edge_attr_chunk)
