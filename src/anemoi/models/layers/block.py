@@ -69,7 +69,7 @@ class TransformerProcessorBlock(BaseBlock):
         activation: str,
         window_size: int,
         dropout_p: float = 0.0,
-        use_flash_attention: bool = False,
+        attention_implementation: str = "flex attention",
         softcap: float = None,
         use_alibi_slopes: bool = None,
     ):
@@ -90,7 +90,7 @@ class TransformerProcessorBlock(BaseBlock):
             bias=False,
             is_causal=False,
             dropout_p=dropout_p,
-            use_flash_attention=use_flash_attention,
+            attention_implementation=attention_implementation,
             softcap=softcap,
             use_alibi_slopes=use_alibi_slopes,
         )

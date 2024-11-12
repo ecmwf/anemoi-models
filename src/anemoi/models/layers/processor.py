@@ -97,7 +97,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
-        use_flash_attention: bool = False,
+        attention_implementation: str = "Flex Attention",
         softcap: float = 0.0,
         use_alibi_slopes: bool = None,
         **kwargs,
@@ -120,6 +120,9 @@ class TransformerProcessor(BaseProcessor):
             Activation function, by default "GELU"
         dropout_p: float, optional
             Dropout probability used for multi-head self attention, default 0.0
+        attention_implementation: str, optional
+            A predefined string which selects which underlying attention
+            implementation, by default "flex attention"
         softcap : float, optional
             Anything > 0 activates softcapping flash attention, by default None
         use_alibi_slopes : bool, optional
@@ -145,7 +148,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
-            use_flash_attention=use_flash_attention,
+            attention_implementation=attention_implementation,
             softcap=softcap,
             use_alibi_slopes=use_alibi_slopes,
         )

@@ -38,7 +38,7 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
-        use_flash_attention: bool = False,
+        attention_implementation: str = "Flex Attention",
         softcap: float = None,
         use_alibi_slopes: bool = None,
     ):
@@ -60,6 +60,9 @@ class MultiHeadSelfAttention(nn.Module):
             dropout probability, by default 0.0
         softcap : float, optional
             Anything > 0 activates softcapping attention, by default None
+        attention_implementation: str, optional
+            A predefined string which selects which underlying attention
+            implementation, by default "flex attention"
         use_alibi_slopes : bool, optional
             Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
             to the attention score of query i and key j, where alibi_slope
@@ -71,7 +74,8 @@ class MultiHeadSelfAttention(nn.Module):
             embed_dim % num_heads == 0
         ), f"Embedding dimension ({embed_dim}) must be divisible by number of heads ({num_heads})"
 
-        self.use_flash_attention = use_flash_attention
+        self.attention_implementation = attention_implementation
+        self.use_alibi_slopes = use_alibi_slopes
         self.set_attention_function()
 
         self.num_heads = num_heads
@@ -81,7 +85,6 @@ class MultiHeadSelfAttention(nn.Module):
         self.dropout_p = dropout_p
         self.is_causal = is_causal
         self.softcap = softcap
-        self.use_alibi_slopes = use_alibi_slopes
 
         if self.use_alibi_slopes is not None:
             self.alibi_slopes = get_alibi_slopes(num_heads)
@@ -94,13 +97,21 @@ class MultiHeadSelfAttention(nn.Module):
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
     def set_attention_function(self):
-        self.attention = FlexAttentionWrapper()
-        return 
-
-        if self.use_flash_attention:
-            self.attention = FlashAttentionWrapper(self.use_alibi_slopes)
+        attn_funcs={
+                #"flash attention": FlashAttentionWrapper(self.use_alibi_slopes),
+                #"flex attention": FlexAttentionWrapper(),
+                #"scaled dot product attention": TorchAttentionWrapper(),
+                "flash attention": FlashAttentionWrapper,
+                "flex attention": FlexAttentionWrapper,
+                "scaled dot product attention": TorchAttentionWrapper,
+                }
+        if self.attention_implementation in attn_funcs:
+            LOGGER.info(f"attention.py: using {self.attention_implementation}")
+            self.attention = attn_funcs[self.attention_implementation]()
         else:
-            self.attention = TorchAttentionWrapper()
+            #Requested attn implementation is not supported
+            raise SystemExit(f"attention.py: Error! {self.attention_implementation} not supported. \
+                    please change model.processor.attention_implementation in the config to one of: {attn_funcs.keys()}")
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -137,7 +148,7 @@ class MultiHeadSelfAttention(nn.Module):
             window_size=self.window_size,
             dropout_p=dropout_p,
             softcap=self.softcap,
-            #alibi_slopes=self.alibi_slopes,
+            alibi_slopes=self.alibi_slopes,
         )
 
         out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
@@ -170,11 +181,18 @@ class TorchAttentionWrapper(nn.Module):
         softcap=None,
         alibi_slopes=None,
     ):
+        if softcap != None:
+            SystemError("Error. Softcap not supported by Pytorchs SDPA. please switch to flash attention or disable softcap.")
+        if alibi_slopes != None:
+            SystemError("Error. Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes.")
+        if window_size != None:
+            SystemError("Error. Sliding window not supported by Pytorchs SDPA. please switch to flash attention or disable sliding window.")
+            
         return self.attention(
             query,
             key,
             value,
-            is_causal=False,
+            is_causal=causal,
             dropout_p=dropout_p,
         )
 
@@ -183,7 +201,6 @@ class FlexAttentionWrapper(nn.Module):
 
     def __init__(self):
         super().__init__()
-        #self.use_alibi_slopes = use_alibi_slopes
 
         if version.parse(torch.__version__) < version.parse("2.5.0"):
             raise SystemExit("Error: torch version is too low. Update to 2.5.0 or higher to use Flex Attention.")
@@ -191,11 +208,6 @@ class FlexAttentionWrapper(nn.Module):
         # we compile flex attn once at the first iteration
         # This is bc we need to know the seq len to compute the mask mod for sliding window
         self.is_attn_compiled = False
-
-        #if (self.is_causal):
-        #    raise SystemExit("Causal not yet supported when using flex_attn (but this would be an easy add). Please rerun with 'is_causal = False'")
-        #if (self.dropout_p != 0.0):
-        #    raise SystemExit("Dropout not yet supported when using flex_attn. Please rerun with 'dropout_p = 0.0'")
 
     def forward(
         self,
@@ -211,11 +223,13 @@ class FlexAttentionWrapper(nn.Module):
     ):
 
         if (alibi_slopes != None): 
-            SystemExit("Error. Alibi_slopes not yet implemented in FlexAttn.")
+            SystemExit("Error. Alibi_slopes not yet implemented in FlexAttn in Anemoi.")
         if (softcap != None):
-            SystemExit("Error. Softcap not yet implemented in FlexAttn")
+            SystemExit("Error. Softcap not yet implemented in FlexAttn in Anemoi.")
         if (dropout_p != 0.0):
-            SystemExit("Error. Dropout not yet implemented in FlexAttn")
+            SystemExit("Error. Dropout not yet implemented in FlexAttn in Anemoi.")
+        if (causal != False):
+            SystemExit("Error. Causal not yet implemented in FlexAttn in Anemoi.")
        
         #This assumes seq_len never changes
         #across iterations and stages
@@ -227,19 +241,11 @@ class FlexAttentionWrapper(nn.Module):
             from torch.nn.attention.flex_attention import flex_attention, create_block_mask #should this be after the version check?
             import functools
 
-            def causal_mask(b, h, q_idx, kv_idx):
-                return q_idx >= kv_idx
-
             def sliding_window_mask(b, h, q_idx, kv_idx):
                 return abs(q_idx - kv_idx) <= window_size
 
-            def sliding_window_causal_mask(b, h, q_idx, kv_idx):
-                causal_mask = q_idx >= kv_idx
-                windowed_mask = (q_idx - kv_idx <= window_size)
-                return causal_mask & windowed_mask
-
             seq_len=query.shape[2]
-            self.block_mask = create_block_mask(sliding_window, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
+            self.block_mask = create_block_mask(sliding_window_mask, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
             self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (recomended in attn blog post)
             self.attention = torch.compile(self.attention)
             self.is_attn_compiled = True
@@ -255,9 +261,8 @@ class FlexAttentionWrapper(nn.Module):
 class FlashAttentionWrapper(nn.Module):
     """Wrapper for Flash attention."""
 
-    def __init__(self, use_alibi_slopes: bool):
+    def __init__(self):
         super().__init__()
-        self.use_alibi_slopes = use_alibi_slopes
         import flash_attn
 
         if version.parse(flash_attn.__version__) < version.parse("2.6.0"):
