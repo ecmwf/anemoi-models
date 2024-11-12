@@ -104,8 +104,8 @@ class MultiHeadSelfAttention(nn.Module):
         }
         if self.attention_implementation in attn_funcs:
             LOGGER.info(f"attention.py: using {self.attention_implementation}")
-            #initalise the attn func here
-            self.attention = attn_funcs[self.attention_implementation]() 
+            # initalise the attn func here
+            self.attention = attn_funcs[self.attention_implementation]()
         else:
             # Requested attn implementation is not supported
             raise SystemExit(
