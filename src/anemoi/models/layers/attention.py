@@ -97,21 +97,21 @@ class MultiHeadSelfAttention(nn.Module):
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
     def set_attention_function(self):
-        attn_funcs={
-                #"flash attention": FlashAttentionWrapper(self.use_alibi_slopes),
-                #"flex attention": FlexAttentionWrapper(),
-                #"scaled dot product attention": TorchAttentionWrapper(),
-                "flash attention": FlashAttentionWrapper,
-                "flex attention": FlexAttentionWrapper,
-                "scaled dot product attention": TorchAttentionWrapper,
-                }
+        attn_funcs = {
+            "flash attention": FlashAttentionWrapper,
+            "flex attention": FlexAttentionWrapper,
+            "scaled dot product attention": TorchAttentionWrapper,
+        }
         if self.attention_implementation in attn_funcs:
             LOGGER.info(f"attention.py: using {self.attention_implementation}")
-            self.attention = attn_funcs[self.attention_implementation]()
+            #initalise the attn func here
+            self.attention = attn_funcs[self.attention_implementation]() 
         else:
-            #Requested attn implementation is not supported
-            raise SystemExit(f"attention.py: Error! {self.attention_implementation} not supported. \
-                    please change model.processor.attention_implementation in the config to one of: {attn_funcs.keys()}")
+            # Requested attn implementation is not supported
+            raise SystemExit(
+                f"attention.py: Error! {self.attention_implementation} not supported. \
+                    please change model.processor.attention_implementation in the config to one of: {attn_funcs.keys()}"
+            )
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -181,13 +181,19 @@ class TorchAttentionWrapper(nn.Module):
         softcap=None,
         alibi_slopes=None,
     ):
-        if softcap != None:
-            SystemError("Error. Softcap not supported by Pytorchs SDPA. please switch to flash attention or disable softcap.")
-        if alibi_slopes != None:
-            SystemError("Error. Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes.")
-        if window_size != None:
-            SystemError("Error. Sliding window not supported by Pytorchs SDPA. please switch to flash attention or disable sliding window.")
-            
+        if softcap is not None:
+            SystemError(
+                "Error. Softcap not supported by Pytorchs SDPA. please switch to flash attention or disable softcap."
+            )
+        if alibi_slopes is not None:
+            SystemError(
+                "Error. Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes."
+            )
+        if window_size is not None:
+            SystemError(
+                "Error. Sliding window not supported by Pytorchs SDPA. please switch to flash attention or disable sliding window."
+            )
+
         return self.attention(
             query,
             key,
@@ -195,6 +201,7 @@ class TorchAttentionWrapper(nn.Module):
             is_causal=causal,
             dropout_p=dropout_p,
         )
+
 
 class FlexAttentionWrapper(nn.Module):
     """Wrapper for Pytorch Flex attention."""
@@ -222,35 +229,41 @@ class FlexAttentionWrapper(nn.Module):
         alibi_slopes: torch.Tensor = None,
     ):
 
-        if (alibi_slopes != None): 
+        if alibi_slopes is not None:
             SystemExit("Error. Alibi_slopes not yet implemented in FlexAttn in Anemoi.")
-        if (softcap != None):
+        if softcap is not None:
             SystemExit("Error. Softcap not yet implemented in FlexAttn in Anemoi.")
-        if (dropout_p != 0.0):
+        if dropout_p != 0.0:
             SystemExit("Error. Dropout not yet implemented in FlexAttn in Anemoi.")
-        if (causal != False):
+        if causal:
             SystemExit("Error. Causal not yet implemented in FlexAttn in Anemoi.")
-       
-        #This assumes seq_len never changes
-        #across iterations and stages
-        #could add something like
+
+        # This assumes seq_len never changes
+        # across iterations and stages
+        # could add something like
         #   if query.shape[2] != prev_seq_len:
         #       self.is_attn_compiled = False
-        #To trigger a recompilation
-        if (not self.is_attn_compiled):
-            from torch.nn.attention.flex_attention import flex_attention, create_block_mask #should this be after the version check?
+        # To trigger a recompilation
+        if not self.is_attn_compiled:
             import functools
+
+            from torch.nn.attention.flex_attention import create_block_mask  # should this be after the version check?
+            from torch.nn.attention.flex_attention import flex_attention
 
             def sliding_window_mask(b, h, q_idx, kv_idx):
                 return abs(q_idx - kv_idx) <= window_size
 
-            seq_len=query.shape[2]
-            self.block_mask = create_block_mask(sliding_window_mask, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len,_compile=True)
-            self.attention = functools.partial(flex_attention, block_mask=self.block_mask) #Cache the block mask (recomended in attn blog post)
+            seq_len = query.shape[2]
+            self.block_mask = create_block_mask(
+                sliding_window_mask, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len, _compile=True
+            )
+            self.attention = functools.partial(
+                flex_attention, block_mask=self.block_mask
+            )  # Cache the block mask (recomended in attn blog post)
             self.attention = torch.compile(self.attention)
             self.is_attn_compiled = True
 
-        #TODO test how this impacts scaling at large model counts
+        # TODO test how this impacts scaling at large model counts
         torch._dynamo.config.optimize_ddp = False
         out = self.attention(query, key, value)
         torch._dynamo.config.optimize_ddp = True
@@ -293,7 +306,7 @@ class FlashAttentionWrapper(nn.Module):
             key,
             value,
             causal=False,
-            window_size=(window_size,window_size),
+            window_size=(window_size, window_size),
             dropout_p=dropout_p,
             softcap=softcap,
             alibi_slopes=alibi_slopes,
