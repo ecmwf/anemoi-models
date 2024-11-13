@@ -23,6 +23,7 @@ Keep it human-readable, your future self will thank you!
 - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
 - GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
 - Mask NaN values in training loss function [#271](https://github.com/ecmwf-lab/aifs-mono/issues/271)
+- New `NamedNodesAttributes` class to handle node attributes in a more flexible way [#64](https://github.com/ecmwf/anemoi-models/pull/64)
 - Contributors file [#69](https://github.com/ecmwf/anemoi-models/pull/69)
 
 ### Changed
@@ -34,6 +35,7 @@ Keep it human-readable, your future self will thank you!
 - ci: extened python versions to include 3.11 and 3.12 [#66](https://github.com/ecmwf/anemoi-models/pull/66)
 - Update copyright notice
 - Fix `__version__` import in init
+- Fix missing copyrights [#71](https://github.com/ecmwf/anemoi-models/pull/71)
 
 ### Removed
 
