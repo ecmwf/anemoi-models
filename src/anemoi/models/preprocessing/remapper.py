@@ -248,7 +248,7 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
         # remap loss mask for rest of variables
         for idx_src, idx_dst in zip(indices_remapped, index):
             if idx_dst is not None:
-                for jj, ii in enumerate(idx_dst):
+                for ii in idx_dst:
                     mask_remapped[..., ii] = mask[..., idx_src]
 
         return mask_remapped
