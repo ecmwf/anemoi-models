@@ -18,6 +18,7 @@ from torch import Tensor
 from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
 from torch.distributed.distributed_c10d import ProcessGroup
+from torch.utils.checkpoint import checkpoint
 from torch_geometric.data import HeteroData
 from torch_geometric.typing import Adj
 from torch_geometric.typing import PairTensor
@@ -243,22 +244,12 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
 
         self.emb_nodes_dst = nn.Linear(self.in_channels_dst, self.hidden_dim)
 
-    def forward(
-        self,
-        x: PairTensor,
-        batch_size: int,
-        shard_shapes: tuple[tuple[int], tuple[int]],
-        model_comm_group: Optional[ProcessGroup] = None,
-    ) -> PairTensor:
+    def block(self, x, shard_shapes, edge_index, batch_size, model_comm_group, num_chunks):
+
         size = (sum(x[0] for x in shard_shapes[0]), sum(x[0] for x in shard_shapes[1]))
         edge_attr = self.trainable(self.edge_attr, batch_size)
-        edge_index = self._expand_edges(self.edge_index_base, self.edge_inc, batch_size)
-
         x_src, x_dst, shapes_src, shapes_dst = self.pre_process(x, shard_shapes, model_comm_group)
 
-        # this part should go into the gradient checkpoint ---- start
-
-        num_chunks = 2  # make configurable
         node_idx_list = torch.arange(size[1], device=x_dst.device).tensor_split(num_chunks)
         edge_attr_list, edge_index_list = sort_edges_1hop_chunks(size, edge_attr, edge_index, num_chunks=num_chunks)
 
@@ -282,7 +273,21 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
                 x_dst_new = torch.zeros_like(x_dst, device=x_dst.device)
             x_dst_new[node_idx] += x_dst_chunk[node_idx]  # only add the nodes with correct update
 
-        # this part should go into the gradient checkpoint ---- end
+        return x_dst_new, shapes_dst
+
+    def forward(
+        self,
+        x: PairTensor,
+        batch_size: int,
+        shard_shapes: tuple[tuple[int], tuple[int]],
+        model_comm_group: Optional[ProcessGroup] = None,
+    ) -> PairTensor:
+        edge_index = self._expand_edges(self.edge_index_base, self.edge_inc, batch_size)
+
+        x_dst_new, shapes_dst = checkpoint(
+            self.block, x, shard_shapes, edge_index, batch_size, model_comm_group, num_chunks=2, use_reentrant=False
+        )
+        # x_dst_new = self.block(x_dst, x_src, edge_attr, shapes_src, shapes_dst, edge_index, size, batch_size, model_comm_group, num_chunks=2)
 
         x_dst_new = self.post_process(x_dst_new, shapes_dst, model_comm_group)
 
