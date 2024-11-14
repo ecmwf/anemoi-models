@@ -175,6 +175,12 @@ class OptMapperInterface(AnemoiModelInterface):
             Output data.
         """
         if use_opt_mapper:
-            x = self.opt_mapper(x, model_comm_group=model_comm_group)
+            y_pred = self.opt_mapper(x, model_comm_group=model_comm_group)
+            y_pred = y_pred.unsqueeze(1)
+            x[..., self.data_indices.internal_model.input.prognostic] = y_pred[
+                ...,
+                self.data_indices.internal_model.output.prognostic,
+            ]
         
         return self.model(x, model_comm_group=model_comm_group)
+    
