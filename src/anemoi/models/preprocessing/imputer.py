@@ -66,7 +66,7 @@ class BaseImputer(BasePreprocessor, ABC):
         self.num_training_input_vars = len(name_to_index_training_input)
         self.num_inference_input_vars = len(name_to_index_inference_input)
         self.num_training_output_vars = len(name_to_index_training_output)
-        self.num_inference_output_vars = len(name_to_index_inference_output)
+        self.num_inference_output_vars = len(name_to_index_inference_output) #Missing isolation
 
         (
             self.index_training_input,
@@ -99,6 +99,9 @@ class BaseImputer(BasePreprocessor, ABC):
 
             LOGGER.debug(f"Imputer: replacing NaNs in {name} with value {self.replacement[-1]}")
 
+    def set_nan_locations(self, nan_locations: torch.Tensor = None):
+        self.nan_locations = nan_locations
+        
     def _expand_subset_mask(self, x: torch.Tensor, idx_src: int) -> torch.Tensor:
         """Expand the subset of the mask to the correct shape."""
         return self.nan_locations[:, idx_src].expand(*x.shape[:-2], -1)
@@ -108,12 +111,9 @@ class BaseImputer(BasePreprocessor, ABC):
         if not in_place:
             x = x.clone()
 
-        # Initilialize mask once
-        if self.nan_locations is None:
-            # The mask is only saved for the last two dimensions (grid, variable)
-            idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
-            self.nan_locations = torch.isnan(x[idx].squeeze())
-
+        # Initilialize mask every time
+        self.nan_locations = torch.isnan(x)
+                
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
             index = self.index_training_input
@@ -128,11 +128,16 @@ class BaseImputer(BasePreprocessor, ABC):
         # Replace values
         for idx_src, (idx_dst, value) in zip(self.index_training_input, zip(index, self.replacement)):
             if idx_dst is not None:
-                x[..., idx_dst][self._expand_subset_mask(x, idx_src)] = value
+                x[..., idx_dst][self.nan_locations[..., idx_src]] = value
+                
         return x
 
     def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
         """Impute missing values in the input tensor."""
+
+        if self.nan_locations is None:
+            return x
+        
         if not in_place:
             x = x.clone()
 
@@ -146,11 +151,11 @@ class BaseImputer(BasePreprocessor, ABC):
                 f"Input tensor ({x.shape[-1]}) does not match the training "
                 f"({self.num_training_output_vars}) or inference shape ({self.num_inference_output_vars})",
             )
-
+                
         # Replace values
-        for idx_src, idx_dst in zip(self.index_training_input, index):
-            if idx_dst is not None:
-                x[..., idx_dst][self._expand_subset_mask(x, idx_src)] = torch.nan
+        for idx in index:
+            if idx is not None:
+                x[..., idx][self.nan_locations[..., idx]] = torch.nan
         return x
 
 
