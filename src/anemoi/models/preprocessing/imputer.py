@@ -117,8 +117,7 @@ class BaseImputer(BasePreprocessor, ABC):
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
             self.nan_locations = torch.isnan(x[idx].squeeze())
 
-        # Initialize training loss mask to weigh imputed values with zeroes once
-        if self.loss_mask_training is None:
+            # Initialize training loss mask to weigh imputed values with zeroes once
             self.loss_mask_training = torch.ones(
                 (x.shape[-2], len(self.data_indices.model.output.name_to_index)), device=x.device
             )  # shape (grid, n_outputs)
