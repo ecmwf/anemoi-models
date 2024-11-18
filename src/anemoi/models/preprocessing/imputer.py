@@ -111,7 +111,7 @@ class BaseImputer(BasePreprocessor, ABC):
         if not in_place:
             x = x.clone()
 
-        # Initilialize nan mask once
+        # Initialize nan mask once
         if self.nan_locations is None:
             # The mask is only saved for the last two dimensions (grid, variable)
             idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
