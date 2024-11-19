@@ -11,9 +11,11 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
+from typing import Optional
 
 import torch
 from torch import nn
+import numpy as np
 
 from anemoi.models.data_indices.tensor import InputTensorIndex
 from anemoi.models.preprocessing.normalizer import InputNormalizer
@@ -62,6 +64,29 @@ class ReluBounding(BaseBounding):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index])
+        return x
+
+class NormalizedReluBounding(BaseBounding):
+    """Initializes the bounding with a ReLU activation with custom normliazed value."""
+
+    def __init__(self, *, variables: list[str], name_to_index: dict, min_val, normalizer: str, statistics: dict,) -> None:
+        super().__init__(variables=variables, name_to_index=name_to_index)
+        self.min_val = min_val
+        self.statistics = statistics
+        self.normalizer = normalizer
+
+        # Validate mask_type input
+        if self.normalizer not in {"mean-std"}:
+            raise ValueError("normalizer must be 'mean-std'.")
+
+        self.norm_min_val = torch.zeros(len(variables)) 
+        for nn, variable in enumerate(variables):
+            if self.normalizer == "mean-std":
+                self.norm_min_val[nn] = min_val[nn] - self.statistics["mean"][self.name_to_index[variable]]
+                self.norm_min_val[nn] *= 1.0/self.statistics["stdev"][self.name_to_index[variable]]
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index] - self.norm_min_val) + self.norm_min_val
         return x
 
 
@@ -145,13 +170,28 @@ class MaskBounding(BaseBounding):
     """
 
     def __init__(
-        self, *, variables: list[str], name_to_index: dict, mask_var: str, trs_val: float, custom_value: float = 0.0, mask_type: str = ">="
+        self, *, 
+        variables: list[str], 
+        name_to_index: dict, 
+        mask_var: str, 
+        trs_val: float, 
+        statistics: Optional[dict] = None, 
+        custom_value: float = 0.0, 
+        mask_type: str = ">="
     ) -> None:
         super().__init__(variables=variables, name_to_index=name_to_index)
         self.mask_var = self._create_index(variables=[mask_var])  # Create index for the mask variable
         self.trs_val = trs_val  # Threshold value
         self.custom_value = custom_value  # Custom value for masked regions
         self.mask_type = mask_type  # Mask type, either '>=' or '<='
+
+        # example
+        # mask_var: siconc
+        # trs_val: applied to siconc
+        # variables: si_velo
+        # custom_value: applied to si_velo
+
+        self.statistics = statistics
 
         # Validate mask_type input
         if self.mask_type not in {">=", "<="}:
