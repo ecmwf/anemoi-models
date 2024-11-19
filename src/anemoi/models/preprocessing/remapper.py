@@ -39,6 +39,14 @@ def atan2_converter(x):
     """
     return torch.remainder(torch.atan2(x[..., 1], x[..., 0]) * 180 / torch.pi, 360)
 
+def log1p_converter(x):
+    """Convert positive var in to log(1+var)."""
+    return torch.log1p(x)
+
+
+def expm1_converter(x):
+    """Convert back log(1+var) to var."""
+    return torch.expm1(x)
 
 class BaseRemapperVariable(BasePreprocessor, ABC):
     """Base class for Remapping Variables."""
@@ -171,7 +179,20 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
                 self.backmappers.append(atan2_converter)
 
                 LOGGER.info(f"Map {name} to cosine and sine and save result in {self.method_config[method][name]}.")
-
+            elif method == "log1p":
+                self.remappers.append([log1p_converter])
+                self.backmappers.append(expm1_converter)
+                index = name_to_index_training_input[name]
+                for i in [    self.index_training_input,
+            self.index_training_remapped_input,
+            self.index_inference_input,
+            self.index_inference_remapped_input,
+            self.index_training_output,
+            self.index_training_backmapped_output,
+            self.index_inference_output,
+            self.index_inference_backmapped_output]:
+                    i.append(index)
+                LOGGER.info(f"Map {name} to log1p and save result in {self.method_config[method][name]}.")
             else:
                 raise ValueError[f"Unknown remapping method for {name}: {method}"]
 
