@@ -15,10 +15,9 @@ from typing import Optional
 
 import torch
 from torch import nn
-import numpy as np
 
 from anemoi.models.data_indices.tensor import InputTensorIndex
-from anemoi.models.preprocessing.normalizer import InputNormalizer
+
 
 class BaseBounding(nn.Module, ABC):
     """Abstract base class for bounding strategies.
@@ -32,12 +31,29 @@ class BaseBounding(nn.Module, ABC):
         *,
         variables: list[str],
         name_to_index: dict,
+        statistics: Optional[dict] = None,
+        name_to_index_stats: Optional[dict] = None,
     ) -> None:
+        """Initializes the bounding strategy.
+
+        Parameters
+        ----------
+        variables : list[str]
+            A list of strings representing the variables that will be bounded.
+        name_to_index : dict
+            A dictionary mapping the variable names to their corresponding indices.
+        statistics : dict, optional
+            A dictionary containing the statistics of the variables.
+        name_to_index_stats : dict, optional
+            A dictionary mapping the variable names to their corresponding indices in the statistics dictionary
+        """
         super().__init__()
 
         self.name_to_index = name_to_index
         self.variables = variables
         self.data_index = self._create_index(variables=self.variables)
+        self.statistics = statistics
+        self.name_to_index_stats = name_to_index_stats
 
     def _create_index(self, variables: list[str]) -> InputTensorIndex:
         return InputTensorIndex(includes=variables, excludes=[], name_to_index=self.name_to_index)._only
@@ -66,46 +82,95 @@ class ReluBounding(BaseBounding):
         x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index])
         return x
 
-class NormalizedReluBounding(BaseBounding):
-    """Initializes the bounding with a ReLU activation with custom normliazed value."""
 
-    def __init__(self, *, variables: list[str], name_to_index: dict, min_val, normalizer: str, statistics: dict,) -> None:
-        super().__init__(variables=variables, name_to_index=name_to_index)
+class NormalizedReluBounding(BaseBounding):
+    """Bounding with a ReLU activation with custom normliazed value."""
+
+    def __init__(
+        self,
+        *,
+        variables: list[str],
+        name_to_index: dict,
+        min_val: list[float],
+        normalizer: str,
+        statistics: dict,
+        name_to_index_stats: dict,
+    ) -> None:
+        """Initializes the NormalizedReluBounding with specified minimum values for bounding.
+
+        Parameters
+        ----------
+        variables : list[str]
+            A list of strings representing the variables that will be bounded.
+        name_to_index : dict
+            A dictionary mapping the variable names to their corresponding indices.
+        statistics : dict
+            A dictionary containing the statistics of the variables.
+        min_val : list[float]
+            The minimum value for the ReLU activation.
+        normalizer : str
+            The type of normalizer to apply: 'mean-std'.
+        name_to_index_stats : dict
+            A dictionary mapping the variable names to their corresponding indices in the statistics dictionary
+        """
+
+        super().__init__(
+            variables=variables,
+            name_to_index=name_to_index,
+            statistics=statistics,
+            name_to_index_stats=name_to_index_stats,
+        )
         self.min_val = min_val
-        self.statistics = statistics
         self.normalizer = normalizer
 
         # Validate mask_type input
         if self.normalizer not in {"mean-std"}:
             raise ValueError("normalizer must be 'mean-std'.")
 
-        self.norm_min_val = torch.zeros(len(variables)) 
-        for nn, variable in enumerate(variables):
+        self.norm_min_val = torch.zeros(len(variables))
+        for ii, variable in enumerate(variables):
             if self.normalizer == "mean-std":
-                self.norm_min_val[nn] = min_val[nn] - self.statistics["mean"][self.name_to_index[variable]]
-                self.norm_min_val[nn] *= 1.0/self.statistics["stdev"][self.name_to_index[variable]]
+                self.norm_min_val[ii] = min_val[ii] - self.statistics["mean"][self.name_to_index_stats[variable]]
+                self.norm_min_val[ii] *= 1.0 / self.statistics["stdev"][self.name_to_index_stats[variable]]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x[..., self.data_index] = torch.nn.functional.relu(x[..., self.data_index] - self.norm_min_val) + self.norm_min_val
+        self.norm_min_val = self.norm_min_val.to(x.device)
+        x[..., self.data_index] = (
+            torch.nn.functional.relu(x[..., self.data_index] - self.norm_min_val) + self.norm_min_val
+        )
         return x
 
 
 class HardtanhBounding(BaseBounding):
-    """Initializes the bounding with specified minimum and maximum values for bounding.
+    """Bounding with a HardTanh activation."""
 
-    Parameters
-    ----------
-    variables : list[str]
-        A list of strings representing the variables that will be bounded.
-    name_to_index : dict
-        A dictionary mapping the variable names to their corresponding indices.
-    min_val : float
-        The minimum value for the HardTanh activation.
-    max_val : float
-        The maximum value for the HardTanh activation.
-    """
+    def __init__(
+        self,
+        *,
+        variables: list[str],
+        name_to_index: dict,
+        min_val: float,
+        max_val: float,
+        statistics: Optional[dict] = None,
+        name_to_index_stats: Optional[dict] = None,
+    ) -> None:
+        """Initializes the bounding with specified minimum and maximum values for bounding.
 
-    def __init__(self, *, variables: list[str], name_to_index: dict, min_val: float, max_val: float) -> None:
+        Parameters
+        ----------
+        variables : list[str]
+            A list of strings representing the variables that will be bounded.
+        name_to_index : dict
+            A dictionary mapping the variable names to their corresponding indices.
+        min_val : float
+            The minimum value for the HardTanh activation.
+        max_val : float
+            The maximum value for the HardTanh activation.
+        statistics : dict
+            A dictionary containing the statistics of the variables.
+        name_to_index_stats : dict
+            A dictionary mapping the variable names to their corresponding indices in the statistics dictionary
+        """
         super().__init__(variables=variables, name_to_index=name_to_index)
         self.min_val = min_val
         self.max_val = max_val
@@ -118,26 +183,39 @@ class HardtanhBounding(BaseBounding):
 
 
 class FractionBounding(HardtanhBounding):
-    """Initializes the FractionBounding with specified parameters.
-
-    Parameters
-    ----------
-    variables : list[str]
-        A list of strings representing the variables that will be bounded.
-    name_to_index : dict
-        A dictionary mapping the variable names to their corresponding indices.
-    min_val : float
-        The minimum value for the HardTanh activation.
-    max_val : float
-        The maximum value for the HardTanh activation.
-    total_var : str
-        A string representing a variable from which a secondary variable is derived. For
-        example, in the case of convective precipitation (Cp), total_var = Tp (total precipitation).
-    """
+    """Bounding with a HardTanh activation and a fraction of a total variable."""
 
     def __init__(
-        self, *, variables: list[str], name_to_index: dict, min_val: float, max_val: float, total_var: str
+        self,
+        *,
+        variables: list[str],
+        name_to_index: dict,
+        min_val: float,
+        max_val: float,
+        total_var: str,
+        statistics: Optional[dict] = None,
+        name_to_index_stats: Optional[dict] = None,
     ) -> None:
+        """Initializes the FractionBounding with specified parameters.
+
+        Parameters
+        ----------
+        variables : list[str]
+            A list of strings representing the variables that will be bounded.
+        name_to_index : dict
+            A dictionary mapping the variable names to their corresponding indices.
+        min_val : float
+            The minimum value for the HardTanh activation.
+        max_val : float
+            The maximum value for the HardTanh activation.
+        total_var : str
+            A string representing a variable from which a secondary variable is derived. For
+            example, in the case of convective precipitation (Cp), total_var = Tp (total precipitation).
+        statistics : dict
+            A dictionary containing the statistics of the variables.
+        name_to_index_stats : dict
+            A dictionary mapping the variable names to their corresponding indices in the statistics dictionary
+        """
         super().__init__(variables=variables, name_to_index=name_to_index, min_val=min_val, max_val=max_val)
         self.total_variable = self._create_index(variables=[total_var])
 
@@ -162,6 +240,10 @@ class MaskBounding(BaseBounding):
         The name of the variable on which the mask is based.
     trs_val : float
         The threshold value for creating the mask.
+    statistics : dict
+        A dictionary containing the statistics of the variables.
+    name_to_index_stats : dict
+        A dictionary mapping the variable names to their corresponding indices in the statistics dictionary
     custom_value : float, optional
         A custom value to assign to the masked regions. If not provided, default behavior is to set masked regions to zero.
     mask_type : str, optional
@@ -170,14 +252,16 @@ class MaskBounding(BaseBounding):
     """
 
     def __init__(
-        self, *, 
-        variables: list[str], 
-        name_to_index: dict, 
-        mask_var: str, 
-        trs_val: float, 
-        statistics: Optional[dict] = None, 
-        custom_value: float = 0.0, 
-        mask_type: str = ">="
+        self,
+        *,
+        variables: list[str],
+        name_to_index: dict,
+        mask_var: str,
+        trs_val: float,
+        statistics: Optional[dict] = None,
+        name_to_index_stats: Optional[dict] = None,
+        custom_value: float = 0.0,
+        mask_type: str = ">=",
     ) -> None:
         super().__init__(variables=variables, name_to_index=name_to_index)
         self.mask_var = self._create_index(variables=[mask_var])  # Create index for the mask variable
