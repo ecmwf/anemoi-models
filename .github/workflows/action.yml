@@ -4,6 +4,10 @@ on:
   issues:
     types:
       - opened
+  pull_request:
+    types:
+      - opened
+      - synchronize
 
 jobs:
   add-to-project:
@@ -16,5 +20,5 @@ jobs:
           # to the issue
           project-url: https://github.com/orgs/ecmwf-lab/projects/1
           github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
-          labeled: bug, needs-triage
-          label-operator: OR
+          # labeled: bug, needs-triage
+          # label-operator: OR
