@@ -4,6 +4,8 @@ on:
   issues:
     types:
       - opened
+      - deleted
+      - closed
   pull_request:
     types:
       - opened
