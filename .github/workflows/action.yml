@@ -11,8 +11,8 @@ on:
     branches:
       - "test_action"
 
-  # Trigger the workflow manually
-  workflow_dispatch: ~
+  # # Trigger the workflow manually
+  # workflow_dispatch: ~
 
 jobs:
   add-to-project:
