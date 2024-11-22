@@ -11,6 +11,12 @@ on:
       - opened
       - synchronize
       - closed
+  push:
+    branches:
+      - "test_action"
+
+  # Trigger the workflow manually
+  workflow_dispatch: ~
 
 jobs:
   add-to-project:
