@@ -4,15 +4,17 @@ on:
   issues:
     types:
       - opened
-  # pull_request:
-  #   types:
-  #     - opened
+      - labeled
+      - reopened
+  pull_request:
+    types:
+      - opened
+      - labeled
   # push:
   #   branches:
   #     - "test_action"
-
-  # Trigger the workflow manually
   workflow_dispatch: ~
+
 
 jobs:
   add-to-project:
@@ -24,4 +26,6 @@ jobs:
           # You can target a project in a different organization
           # to the issue
           project-url: https://github.com/orgs/ecmwf-lab/projects/1
-          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          labeled: bug, needs-triage
+          label-operator: OR

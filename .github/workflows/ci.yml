@@ -1,31 +1,52 @@
-name: Add bugs to bugs project
+name: ci
 
 on:
-  issues:
-    types:
-      - opened
-      - labeled
-      - reopened
+  # Trigger the workflow on push to master or develop, except tag creation
+  push:
+    branches:
+      - 'main'
+      - 'develop'
+    tags-ignore:
+      - '**'
+    paths-ignore:
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "README.md"
+
+  # Trigger the workflow on pull request
   pull_request:
-    types:
-      - opened
-      - labeled
-  # push:
-  #   branches:
-  #     - "test_action"
+    paths-ignore:
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "README.md"
+
+  # Trigger the workflow manuallyp instals
   workflow_dispatch: ~
 
+  # Trigger after public PR approved for CI
+  pull_request_target:
+    types: [labeled]
+    paths-ignore:
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "README.md"
 
 jobs:
-  add-to-project:
-    name: Add issue to project
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/add-to-project@v1.0.2
-        with:
-          # You can target a project in a different organization
-          # to the issue
-          project-url: https://github.com/orgs/ecmwf-lab/projects/1
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          labeled: bug, needs-triage
-          label-operator: OR
+  # Run CI including downstream packages on self-hosted runners
+  downstream-ci:
+    name: downstream-ci
+    if: ${{ !contains(github.repository, 'private') && (!github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci') }}
+    uses: ecmwf-actions/downstream-ci/.github/workflows/downstream-ci.yml@main
+    with:
+      anemoi-models: ecmwf/anemoi-models@${{ github.event.pull_request.head.sha || github.sha }}
+      codecov_upload: true
+    secrets: inherit
+
+   # Build downstream packages on HPC
+  downstream-ci-hpc:
+    name: downstream-ci-hpc
+    if: ${{ !contains(github.repository, 'private') && (!github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci') }}
+    uses: ecmwf-actions/downstream-ci/.github/workflows/downstream-ci-hpc.yml@main
+    with:
+      anemoi-models: ecmwf/anemoi-models@${{ github.event.pull_request.head.sha || github.sha }}
+    secrets: inherit
