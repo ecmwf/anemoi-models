@@ -26,4 +26,4 @@ jobs:
           project-url: https://github.com/orgs/ecmwf-lab/projects/1
           github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
 
-          
+
