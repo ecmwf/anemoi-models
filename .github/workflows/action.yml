@@ -1,18 +1,17 @@
 name: Add bugs to bugs project
 
 on:
+  workflow_dispatch: 
   issues:
     types:
       - opened
   # pull_request:
   #   types:
   #     - opened
-  # push:
-  #   branches:
-  #     - "test_action"
+  push:
+    branches:
+      - "test_action"
 
-  # Trigger the workflow manually
-  workflow_dispatch: ~
 
 jobs:
   add-to-project:
