@@ -25,11 +25,11 @@ class AnemoiModelEncProcDec(BaseAnemoiEncProcDecModel):
     """Message passing graph neural network."""
 
     def instantiate_encoder(self, model_config: DotDict) -> None:
-        input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
+        #input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
 
         self.encoder = instantiate(
             model_config.model.encoder,
-            in_channels_src=input_dim,
+            in_channels_src=self.input_dim,
             in_channels_dst=self.node_attributes.attr_ndims[self._graph_name_hidden],
             hidden_dim=self.num_channels,
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_name_hidden)],
@@ -47,12 +47,12 @@ class AnemoiModelEncProcDec(BaseAnemoiEncProcDecModel):
         )
 
     def instantiate_decoder(self, model_config: DotDict) -> None:
-        input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
+        #input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
 
         self.decoder = instantiate(
             model_config.model.decoder,
             in_channels_src=self.num_channels,
-            in_channels_dst=input_dim,
+            in_channels_dst=self.input_dim,
             hidden_dim=self.num_channels,
             out_channels_dst=self.num_output_channels,
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_data)],

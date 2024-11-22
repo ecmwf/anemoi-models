@@ -70,10 +70,16 @@ class BaseAnemoiEncProcDecModel(nn.Module, ABC):
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
 
-        self.multi_step = model_config.training.multistep_input
+        #self.multi_step = model_config.training.multistep_input
         self.num_channels = model_config.model.num_channels
 
         self.node_attributes = NamedNodesAttributes(model_config.model.trainable_parameters.hidden, self._graph_data)
+
+        mstep = len(model_config.training.explicit_times.input) if hasattr(model_config.training, "explicit_times") else model_config.training.multistep_input
+        num_target_forcings = len(model_config.training.target_forcing.data) + 1 if hasattr(model_config.training, "target_forcing") else 0
+        #TODO: make the +1 depend on dimensionality of custom forcings
+        #TODO: also, with the proper setup, the above if test can be replaced with a getattr and default to list of length 0
+        self.input_dim = mstep * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data] + num_target_forcings
 
         self.instantiate_encoder(model_config)
         self.instantiate_processor(model_config)
@@ -245,6 +251,6 @@ class BaseAnemoiEncProcDecModel(nn.Module, ABC):
         # residual connection (just for the prognostic variables)
         x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
 
-        x_out = self.bound_output(x_out, batch_size, ensemble_size)
+        x_out = self.bound_output(x_out) # , batch_size, ensemble_size)
 
         return x_out
