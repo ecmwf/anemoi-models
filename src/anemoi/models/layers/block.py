@@ -69,6 +69,7 @@ class TransformerProcessorBlock(BaseBlock):
         activation: str,
         window_size: int,
         dropout_p: float = 0.0,
+        layer_norm: Optional[dict] = None
     ):
         super().__init__()
 
@@ -78,7 +79,8 @@ class TransformerProcessorBlock(BaseBlock):
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
-        self.layer_norm1 = nn.LayerNorm(num_channels)
+        self.layer_norm1 = layer_norm() if layer_norm else nn.LayerNorm(num_channels)
+        self.layer_norm2 = layer_norm() if layer_norm else nn.LayerNorm(num_channels)
 
         self.attention = MultiHeadSelfAttention(
             num_heads=num_heads,
@@ -94,14 +96,15 @@ class TransformerProcessorBlock(BaseBlock):
             act_func(),
             nn.Linear(hidden_dim, num_channels),
         )
-        self.layer_norm2 = nn.LayerNorm(num_channels)
 
     def forward(
-        self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
+        self, x: Tensor, shapes: list, batch_size: int,
+        model_comm_group: Optional[ProcessGroup] = None,
+        **kwargs
     ) -> Tensor:
         # Need to be out of place for gradient propagation
-        x = x + self.attention(self.layer_norm1(x), shapes, batch_size, model_comm_group=model_comm_group)
-        x = x + self.mlp(self.layer_norm2(x))
+        x = x + self.attention(self.layer_norm1(x, **kwargs), shapes, batch_size, model_comm_group=model_comm_group)
+        x = x + self.mlp(self.layer_norm2(x, **kwargs))
         return x
 
 

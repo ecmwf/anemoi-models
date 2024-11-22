@@ -97,6 +97,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
+        layer_norm: Optional[dict] = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -138,6 +139,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
+            layer_norm=layer_norm,
         )
 
         self.offload_layers(cpu_offload)
@@ -157,7 +159,7 @@ class TransformerProcessor(BaseProcessor):
                 model_comm_group.size() == 1 or batch_size == 1
             ), "Only batch size of 1 is supported when model is sharded accross GPUs"
 
-        (x,) = self.run_layers((x,), shape_nodes, batch_size, model_comm_group)
+        (x,) = self.run_layers((x,), shape_nodes, batch_size, model_comm_group, **kwargs)
 
         return x
 

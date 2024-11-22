@@ -22,18 +22,3 @@ class CheckpointWrapper(nn.Module):
 
     def forward(self, *args, **kwargs):
         return checkpoint(self.module, *args, **kwargs, use_reentrant=False)
-
-
-class AutocastLayerNorm(nn.LayerNorm):
-    """LayerNorm that casts the output back to the input type."""
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward with explicit autocast back to the input type.
-
-        This casts the output to (b)float16 (instead of float32) when we run in mixed
-        precision.
-        """
-        return super().forward(x).type_as(x)

@@ -13,7 +13,7 @@ import logging
 import torch
 from torch import nn
 
-from anemoi.models.layers.utils import AutocastLayerNorm
+from anemoi.models.layers.normalization import AutocastLayerNorm
 from anemoi.models.layers.utils import CheckpointWrapper
 
 LOGGER = logging.getLogger(__name__)

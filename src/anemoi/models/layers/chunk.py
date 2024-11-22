@@ -75,6 +75,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
         dropout_p: float = 0.0,
+        layer_norm: Optional[dict] = None,
     ) -> None:
         """Initialize TransformerProcessor.
 
@@ -103,13 +104,18 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
+            layer_norm=layer_norm,
         )
 
     def forward(
-        self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
+        self, x: Tensor, shapes: list, batch_size: int,
+        model_comm_group: Optional[ProcessGroup] = None,
+        **kwargs,
     ) -> Tensor:
         for i in range(self.num_layers):
-            x = self.blocks[i](x, shapes, batch_size, model_comm_group=model_comm_group)
+            x = self.blocks[i](x, shapes, batch_size,
+                               model_comm_group=model_comm_group,
+                               **kwargs)
 
         return (x,)  # return tuple for consistency with other processors
 
