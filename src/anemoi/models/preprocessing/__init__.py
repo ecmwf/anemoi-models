@@ -106,7 +106,7 @@ class BasePreprocessor(nn.Module):
             Whether to process the tensor in place
         inverse : bool
             Whether to inverse transform the input
-    
+
         Returns
         -------
         torch.Tensor

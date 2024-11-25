@@ -12,7 +12,6 @@ from typing import Optional
 
 import einops
 import torch
-
 from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
 from torch import Tensor

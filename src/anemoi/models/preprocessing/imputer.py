@@ -67,7 +67,7 @@ class BaseImputer(BasePreprocessor, ABC):
         self.num_training_input_vars = len(name_to_index_training_input)
         self.num_inference_input_vars = len(name_to_index_inference_input)
         self.num_training_output_vars = len(name_to_index_training_output)
-        self.num_inference_output_vars = len(name_to_index_inference_output) #Missing isolation
+        self.num_inference_output_vars = len(name_to_index_inference_output)  # Missing isolation
 
         (
             self.index_training_input,
@@ -102,7 +102,7 @@ class BaseImputer(BasePreprocessor, ABC):
 
     def set_nan_locations(self, nan_locations: torch.Tensor = None):
         self.nan_locations = nan_locations
-        
+
     def _expand_subset_mask(self, x: torch.Tensor, idx_src: int) -> torch.Tensor:
         """Expand the subset of the mask to the correct shape."""
         return self.nan_locations[:, idx_src].expand(*x.shape[:-2], -1)
@@ -114,7 +114,7 @@ class BaseImputer(BasePreprocessor, ABC):
 
         # Initilialize mask every time
         self.nan_locations = torch.isnan(x)
-                
+
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
             index = self.index_training_input
@@ -130,7 +130,7 @@ class BaseImputer(BasePreprocessor, ABC):
         for idx_src, (idx_dst, value) in zip(self.index_training_input, zip(index, self.replacement)):
             if idx_dst is not None:
                 x[..., idx_dst][self.nan_locations[..., idx_src]] = value
-                
+
         return x
 
     def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
@@ -138,7 +138,7 @@ class BaseImputer(BasePreprocessor, ABC):
 
         if self.nan_locations is None:
             return x
-        
+
         if not in_place:
             x = x.clone()
 
@@ -152,7 +152,7 @@ class BaseImputer(BasePreprocessor, ABC):
                 f"Input tensor ({x.shape[-1]}) does not match the training "
                 f"({self.num_training_output_vars}) or inference shape ({self.num_inference_output_vars})",
             )
-                
+
         # Replace values
         for idx in index:
             if idx is not None:
