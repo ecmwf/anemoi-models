@@ -10,6 +10,8 @@ Keep it human-readable, your future self will thank you!
 
 ## [Unreleased](https://github.com/ecmwf/anemoi-models/compare/0.3.0...HEAD)
 
+- Add synchronisation workflow
+
 ### Added
 
 - New AnemoiModelEncProcDecHierarchical class available in models [#37](https://github.com/ecmwf/anemoi-models/pull/37)
@@ -21,11 +23,19 @@ Keep it human-readable, your future self will thank you!
 - configurabilty of the dropout probability in the the MultiHeadSelfAttention module
 - Variable Bounding as configurable model layers [#13](https://github.com/ecmwf/anemoi-models/issues/13)
 - GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
+- New `NamedNodesAttributes` class to handle node attributes in a more flexible way [#64](https://github.com/ecmwf/anemoi-models/pull/64)
+- Contributors file [#69](https://github.com/ecmwf/anemoi-models/pull/69)
 
 ### Changed
 - Bugfixes for CI
 - Change Changelog CI to run after successful publish
 - pytest for downstream-ci-hpc
+- Update CODEOWNERS
+- Fix pre-commit regex
+- ci: extened python versions to include 3.11 and 3.12 [#66](https://github.com/ecmwf/anemoi-models/pull/66)
+- Update copyright notice
+- Fix `__version__` import in init
+- Fix missing copyrights [#71](https://github.com/ecmwf/anemoi-models/pull/71)
 
 ### Removed
 
