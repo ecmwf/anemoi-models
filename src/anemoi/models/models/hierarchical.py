@@ -12,7 +12,6 @@ from typing import Optional
 
 import einops
 import torch
-
 from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
 from torch import Tensor
@@ -21,10 +20,9 @@ from torch.distributed.distributed_c10d import ProcessGroup
 from torch_geometric.data import HeteroData
 
 from anemoi.models.distributed.shapes import get_shape_shards
+from anemoi.models.layers.graph import NamedNodesAttributes
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.models import AnemoiModelEncProcDec
-
-from anemoi.models.layers.graph import NamedNodesAttributes
 
 LOGGER = logging.getLogger(__name__)
 
@@ -71,10 +69,9 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
 
         self.multi_step = model_config.training.multistep_input
 
-        # self.node_attributes = {hidden_name: NamedNodesAttributes(model_config.model.trainable_parameters[hidden_name], self._graph_data) 
+        # self.node_attributes = {hidden_name: NamedNodesAttributes(model_config.model.trainable_parameters[hidden_name], self._graph_data)
         #                         for hidden_name in self._graph_hidden_names}
         self.node_attributes = NamedNodesAttributes(model_config.model.trainable_parameters.hidden, self._graph_data)
-
 
         input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
 
@@ -86,7 +83,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
             hidden_dim=self.hidden_dims[self._graph_hidden_names[0]],
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_hidden_names[0])],
             src_grid_size=self.node_attributes.num_nodes[self._graph_name_data],
-            dst_grid_size=self.node_attributes.num_nodes[self._graph_hidden_names[0]]
+            dst_grid_size=self.node_attributes.num_nodes[self._graph_hidden_names[0]],
         )
 
         # Level processors
