@@ -38,7 +38,7 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
-        attention_implementation: str = "Flex Attention",
+        attention_implementation: str = "flex attention",
         softcap: float = None,
         use_alibi_slopes: bool = None,
     ):
