@@ -299,7 +299,7 @@ class FlashAttentionWrapper(nn.Module):
             einops.rearrange(t, "batch heads grid vars -> batch grid heads vars") for t in (query, key, value)
         )
 
-        alibi_slopes = alibi_slopes.repeat(batch_size, 1).to(query.device) if self.use_alibi_slopes else None
+        alibi_slopes = alibi_slopes.repeat(batch_size, 1).to(query.device) if alibi_slopes is not None else None
 
         out = self.attention(
             query,
