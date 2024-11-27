@@ -97,7 +97,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
-        attention_implementation: str = "Flex Attention",
+        attention_implementation: str = "flex attention",
         softcap: float = 0.0,
         use_alibi_slopes: bool = None,
         **kwargs,
