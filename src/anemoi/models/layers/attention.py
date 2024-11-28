@@ -40,7 +40,7 @@ class MultiHeadSelfAttention(nn.Module):
         dropout_p: float = 0.0,
         attention_implementation: str = "flex attention",
         softcap: float = None,
-        use_alibi_slopes: bool = None,
+        use_alibi_slopes: bool = False,
     ):
         """Initialize MultiHeadSelfAttention.
 
@@ -86,7 +86,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.is_causal = is_causal
         self.softcap = softcap
 
-        if self.use_alibi_slopes is not None:
+        if self.use_alibi_slopes:
             self.alibi_slopes = get_alibi_slopes(num_heads)
             assert self.alibi_slopes.shape[0] == num_heads
         else:
