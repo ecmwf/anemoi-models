@@ -76,11 +76,21 @@ class AnemoiModelEncProcDec(nn.Module):
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
         )
 
+        latlons_hidden = self.node_attributes.get_coordinates(self._graph_name_hidden)
+        lat_coslon_sinlon_hidden = torch.cat( # lat, cos(lon), sin(lon) for hidden grid points
+            (   latlons_hidden[:, 0].unsqueeze(-1),
+                torch.cos(latlons_hidden[:, 1].unsqueeze(-1)),
+                torch.sin(latlons_hidden[:, 1].unsqueeze(-1)),
+            ),
+            dim=-1,
+        )
+
         # Processor hidden -> hidden
         self.processor = instantiate(
             model_config.model.processor,
             num_channels=self.num_channels,
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
+            grid_lat_coslon_sinlon = lat_coslon_sinlon_hidden,
             src_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
         )
