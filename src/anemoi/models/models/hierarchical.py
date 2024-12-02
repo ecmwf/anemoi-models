@@ -188,7 +188,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         x_trainable_data = torch.cat(
             (
                 einops.rearrange(x, "batch time ensemble grid vars -> (batch ensemble grid) (time vars)"),
-                self.trainable_data(self.latlons_data, batch_size=batch_size),
+                self.node_attributes(self._graph_name_data, batch_size=batch_size),
             ),
             dim=-1,  # feature dimension
         )
