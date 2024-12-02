@@ -136,6 +136,12 @@ class BaseImputer(BasePreprocessor, ABC):
     def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
         """Impute missing values in the input tensor."""
 
+        return x
+    
+        # TODO: Does this inverse transform make sense? Why are we inserting NaNs again? what would we do at inference time? 
+        #       By not putting NaNs again, the model should know to predict the imputed values. 
+        #       Can anyone confirm? 
+
         if self.nan_locations is None:
             return x
 
