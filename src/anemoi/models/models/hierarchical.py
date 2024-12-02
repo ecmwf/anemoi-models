@@ -48,7 +48,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         if isinstance(num_channels := model_config.model.num_channels, int):
             LOGGER.info("An increasing number of channels, doubling at each hierarchy level, is used.")
             self.num_channels = { # dim. of features at each depth
-                hidden: model_config.model.num_channels * (2**i) for i, hidden in enumerate(self._graph_hidden_names)
+                hidden: model_config.model.num_channels * (2**i) for i, hidden in enumerate(self._graph_name_hidden)
             }
         else:
             assert len(num_channels) == self.num_hidden, (
