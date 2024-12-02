@@ -73,7 +73,7 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         #                         for hidden_name in self._graph_hidden_names}
         self.node_attributes = NamedNodesAttributes(model_config.model.trainable_parameters.hidden, self._graph_data)
 
-        input_dim = self.multi_step * self.num_input_channels + self.latlons_data.shape[1] + self.trainable_data_size
+        input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
 
         # Encoder data -> hidden
         self.encoder = instantiate(
