@@ -25,7 +25,7 @@ LOGGER = logging.getLogger(__name__)
 
 class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
     """Message passing hierarchical graph neural network."""
-    
+
     graph_data: HeteroData
     _graph_name_data: str
     _graph_name_hidden: list[str]
@@ -47,13 +47,13 @@ class AnemoiModelEncProcDecHierarchical(AnemoiModelEncProcDec):
         self.multi_step = model_config.training.multistep_input
         if isinstance(num_channels := model_config.model.num_channels, int):
             LOGGER.info("An increasing number of channels, doubling at each hierarchy level, is used.")
-            self.num_channels = { # dim. of features at each depth
+            self.num_channels = {  # dim. of features at each depth
                 hidden: model_config.model.num_channels * (2**i) for i, hidden in enumerate(self._graph_hidden_names)
             }
         else:
-            assert len(num_channels) == self.num_hidden, (
-                f"num_channels ({num_channels}) length must be equal to the number of hierarchy levels ({self.num_hidden})"
-            )
+            assert (
+                len(num_channels) == self.num_hidden
+            ), f"num_channels ({num_channels}) length must be equal to the number of hierarchy levels ({self.num_hidden})"
             self.num_channels = model_config.model.num_channels
 
     def instantiate_processor(self, model_config: DotDict) -> None:
