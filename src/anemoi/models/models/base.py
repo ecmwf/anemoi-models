@@ -63,23 +63,28 @@ class BaseAnemoiEncProcDecModel(nn.Module, ABC):
         """
         super().__init__()
 
-        self._graph_data = graph_data
-        self._graph_name_data = model_config.graph.data
-        self._graph_name_hidden = model_config.graph.hidden
+        self.set_graph_parameters(graph_data, model_config)
+        self.set_model_parameters(model_config)
 
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
 
-        self.multi_step = model_config.training.multistep_input
-        self.num_channels = model_config.model.num_channels
-
-        self.node_attributes = NamedNodesAttributes(model_config.model.trainable_parameters.hidden, self._graph_data)
-
         self.instantiate_encoder(model_config)
         self.instantiate_processor(model_config)
         self.instantiate_decoder(model_config)
-
         self.instantiate_boundings(model_config, data_indices)
+
+    def set_graph_parameters(self, graph_data: HeteroData, model_config: DotDict) -> None:
+        """Set the graph derived attributes inside the model."""
+        self._graph_data = graph_data
+        self._graph_name_data = model_config.graph.data
+        self._graph_name_hidden = model_config.graph.hidden
+        self.node_attributes = NamedNodesAttributes(model_config.model.trainable_parameters.hidden, self._graph_data)
+
+    def set_model_parameters(self, model_config: DotDict) -> None:
+        """Set the model specific parameters based on the config file."""
+        self.multi_step = model_config.training.multistep_input
+        self.num_channels = model_config.model.num_channels
 
     def _calculate_shapes_and_indices(self, data_indices: IndexCollection) -> None:
         self.num_input_channels = len(data_indices.internal_model.input)
