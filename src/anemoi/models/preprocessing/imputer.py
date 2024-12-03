@@ -67,7 +67,7 @@ class BaseImputer(BasePreprocessor, ABC):
         self.num_training_input_vars = len(name_to_index_training_input)
         self.num_inference_input_vars = len(name_to_index_inference_input)
         self.num_training_output_vars = len(name_to_index_training_output)
-        self.num_inference_output_vars = len(name_to_index_inference_output)  # Missing isolation
+        self.num_inference_output_vars = len(name_to_index_inference_output)
 
         (
             self.index_training_input,

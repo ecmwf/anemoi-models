@@ -99,10 +99,6 @@ class AnemoiModelInterface(torch.nn.Module):
         """
         batch = self.pre_processors(batch, in_place=False)
 
-        # Save nano locations to use when post processing
-        nan_locations = self.pre_processors.processors[-1].nan_locations
-        self.post_processors[0].set_nan_locations(nan_locations)
-
         with torch.no_grad():
 
             assert (
