@@ -43,6 +43,8 @@ class BaseImputer(BasePreprocessor, ABC):
         super().__init__(config, data_indices, statistics)
 
         self.nan_locations = None
+        # weight imputed values wiht zero in loss calculation
+        self.loss_mask_training = None
 
     def _validate_indices(self):
         assert len(self.index_training_input) == len(self.index_inference_input) <= len(self.replacement), (
@@ -114,6 +116,10 @@ class BaseImputer(BasePreprocessor, ABC):
 
         # Initilialize mask every time
         self.nan_locations = torch.isnan(x)
+
+        self.loss_mask_training = torch.ones(
+            (x.shape[-2], len(self.data_indices.model.output.name_to_index)), device=x.device
+        ) 
 
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
