@@ -95,7 +95,9 @@ class BasePreprocessor(nn.Module):
             for variable in variables
         }
 
-    def forward(self, x, in_place: bool = True, inverse: bool = False) -> Tensor:
+    def forward(
+        self, x, in_place: bool = True, inverse: bool = False, data_index: Optional[torch.Tensor] = None
+    ) -> Tensor:
         """Process the input tensor.
 
         Parameters
@@ -106,6 +108,8 @@ class BasePreprocessor(nn.Module):
             Whether to process the tensor in place
         inverse : bool
             Whether to inverse transform the input
+        data_index : torch.Tensor, optional
+            Normalize only the specified indices, by default.
 
         Returns
         -------
@@ -113,8 +117,8 @@ class BasePreprocessor(nn.Module):
             Processed tensor
         """
         if inverse:
-            return self.inverse_transform(x, in_place=in_place)
-        return self.transform(x, in_place=in_place)
+            return self.inverse_transform(x, in_place=in_place, data_index=data_index)
+        return self.transform(x, in_place=in_place, data_index=data_index)
 
     def transform(self, x, in_place: bool = True) -> Tensor:
         """Process the input tensor."""
@@ -155,7 +159,7 @@ class Processors(nn.Module):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__} [{'inverse' if self.inverse else 'forward'}]({self.processors})"
 
-    def forward(self, x, in_place: bool = True) -> Tensor:
+    def forward(self, x, in_place: bool = True, data_index: Optional[torch.Tensor] = None) -> Tensor:
         """Process the input tensor.
 
         Parameters
@@ -164,6 +168,8 @@ class Processors(nn.Module):
             Input tensor
         in_place : bool
             Whether to process the tensor in place
+        data_index : Optional[torch.Tensor], optional
+            Normalize only the specified indices, by default None
 
         Returns
         -------
@@ -171,7 +177,7 @@ class Processors(nn.Module):
             Processed tensor
         """
         for processor in self.processors.values():
-            x = processor(x, in_place=in_place, inverse=self.inverse)
+            x = processor(x, in_place=in_place, inverse=self.inverse, data_index=data_index)
 
         if self.first_run:
             self.first_run = False

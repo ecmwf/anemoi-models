@@ -223,11 +223,4 @@ class AnemoiModelEncProcDec(nn.Module):
             .clone()
         )
 
-        # residual connection (just for the prognostic variables)
-        x_out[..., self._internal_output_idx] += x[:, -1, :, :, self._internal_input_idx]
-
-        for bounding in self.boundings:
-            # bounding performed in the order specified in the config file
-            x_out = bounding(x_out)
-
         return x_out

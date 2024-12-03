@@ -8,10 +8,12 @@
 # nor does it submit to any jurisdiction.
 
 import uuid
+from typing import Optional
 
 import torch
 from anemoi.utils.config import DotDict
 from hydra.utils import instantiate
+from torch.distributed.distributed_c10d import ProcessGroup
 from torch_geometric.data import HeteroData
 
 from anemoi.models.preprocessing import Processors
@@ -39,38 +41,55 @@ class AnemoiModelInterface(torch.nn.Module):
         Metadata for the model.
     data_indices : dict
         Indices for the data.
-    pre_processors : Processors
-        Pre-processing steps to apply to the data before passing it to the model.
-    post_processors : Processors
-        Post-processing steps to apply to the model's output.
     model : AnemoiModelEncProcDec
         The underlying Anemoi model.
     """
 
     def __init__(
-        self, *, config: DotDict, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict
+        self,
+        *,
+        config: DotDict,
+        graph_data: HeteroData,
+        statistics: dict,
+        data_indices: dict,
+        metadata: dict,
+        statistics_tendencies: Optional[dict] = None,
     ) -> None:
         super().__init__()
         self.config = config
         self.id = str(uuid.uuid4())
         self.multi_step = self.config.training.multistep_input
+        self.prediction_strategy = self.config.training.prediction_strategy
         self.graph_data = graph_data
         self.statistics = statistics
+        self.statistics_tendencies = statistics_tendencies
         self.metadata = metadata
         self.data_indices = data_indices
         self._build_model()
 
     def _build_model(self) -> None:
         """Builds the model and pre- and post-processors."""
-        # Instantiate processors
-        processors = [
-            [name, instantiate(processor, data_indices=self.data_indices, statistics=self.statistics)]
-            for name, processor in self.config.data.processors.items()
+        # Instantiate processors for state
+        processors_state = [
+            [name, instantiate(processor, statistics=self.statistics, data_indices=self.data_indices)]
+            for name, processor in self.config.data.processors.state.items()
         ]
 
         # Assign the processor list pre- and post-processors
-        self.pre_processors = Processors(processors)
-        self.post_processors = Processors(processors, inverse=True)
+        self.pre_processors_state = Processors(processors_state)
+        self.post_processors_state = Processors(processors_state, inverse=True)
+
+        # Instantiate processors for tendency
+        self.pre_processors_tendency = None
+        self.post_processors_tendency = None
+        if self.prediction_strategy == "tendency":
+            processors_tendency = [
+                [name, instantiate(processor, statistics=self.statistics_tendencies, data_indices=self.data_indices)]
+                for name, processor in self.config.data.processors.tendency.items()
+            ]
+
+            self.pre_processors_tendency = Processors(processors_tendency)
+            self.post_processors_tendency = Processors(processors_tendency, inverse=True)
 
         # Instantiate the model
         self.model = instantiate(
@@ -81,8 +100,19 @@ class AnemoiModelInterface(torch.nn.Module):
             _recursive_=False,  # Disables recursive instantiation by Hydra
         )
 
-        # Use the forward method of the model directly
-        self.forward = self.model.forward
+    def forward(self, x: torch.Tensor, model_comm_group: Optional[ProcessGroup] = None) -> torch.Tensor:
+        if self.prediction_strategy == "residual":
+            # Predict state by adding residual connection (just for the prognostic variables)
+            x_pred = self.model.forward(x, model_comm_group)
+            x_pred[..., self.model._internal_output_idx] += x[:, -1, :, :, self.model._internal_input_idx]
+        else:
+            x_pred = self.model.forward(x, model_comm_group)
+
+        for bounding in self.model.boundings:
+            # bounding performed in the order specified in the config file
+            x_pred = bounding(x_pred)
+
+        return x_pred
 
     def predict_step(self, batch: torch.Tensor) -> torch.Tensor:
         """Prediction step for the model.
@@ -97,17 +127,58 @@ class AnemoiModelInterface(torch.nn.Module):
         torch.Tensor
             Predicted data.
         """
-        batch = self.pre_processors(batch, in_place=False)
 
         with torch.no_grad():
 
             assert (
                 len(batch.shape) == 4
             ), f"The input tensor has an incorrect shape: expected a 4-dimensional tensor, got {batch.shape}!"
+            x = self.pre_processors_state(
+                batch[:, 0 : self.multi_step, ...], in_place=False, data_index=self.data_indices.data.input.full
+            )
+
             # Dimensions are
-            # batch, timesteps, horizonal space, variables
-            x = batch[:, 0 : self.multi_step, None, ...]  # add dummy ensemble dimension as 3rd index
+            # batch, timesteps, horizontal space, variables
+            x = x[:, :, None, ...]  # add dummy ensemble dimension as 3rd index
+            if self.prediction_strategy == "tendency":
+                tendency_hat = self(x)
+                y_hat = self.add_tendency_to_state(x[:, -1, ...], tendency_hat)
+            else:
+                y_hat = self(x)
+                y_hat = self.post_processors_state(y_hat, in_place=False, data_index=self.data_indices.data.output.full)
 
-            y_hat = self(x)
+        return y_hat
 
-        return self.post_processors(y_hat, in_place=False)
+    def add_tendency_to_state(self, state_inp: torch.Tensor, tendency: torch.Tensor) -> torch.Tensor:
+        """Add the tendency to the state.
+
+        Parameters
+        ----------
+        state_inp : torch.Tensor
+            The normalized input state tensor with full input variables.
+        tendency : torch.Tensor
+            The normalized tendency tensor output from model.
+
+        Returns
+        -------
+        torch.Tensor
+            Predicted data.
+        """
+
+        state_outp = self.post_processors_tendency(
+            tendency, in_place=False, data_index=self.data_indices.data.output.full
+        )
+
+        state_outp[..., self.data_indices.model.output.diagnostic] = self.post_processors_state(
+            tendency[..., self.data_indices.model.output.diagnostic],
+            in_place=False,
+            data_index=self.data_indices.data.output.diagnostic,
+        )
+
+        state_outp[..., self.data_indices.model.output.prognostic] += self.post_processors_state(
+            state_inp[..., self.data_indices.model.input.prognostic],
+            in_place=False,
+            data_index=self.data_indices.data.input.prognostic,
+        )
+
+        return state_outp

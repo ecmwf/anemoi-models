@@ -23,7 +23,9 @@ def input_normalizer():
         {
             "diagnostics": {"log": {"code": {"level": "DEBUG"}}},
             "data": {
-                "normalizer": {"default": "mean-std", "min-max": ["x"], "max": ["y"], "none": ["z"], "mean-std": ["q"]},
+                "normalizers": {
+                    "state": {"default": "mean-std", "min-max": ["x"], "max": ["y"], "none": ["z"], "mean-std": ["q"]}
+                },
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
                 "remapped": {},
@@ -69,7 +71,7 @@ def remap_normalizer():
     }
     name_to_index = {"x": 0, "y": 1, "z": 2, "q": 3, "other": 4}
     data_indices = IndexCollection(config=config, name_to_index=name_to_index)
-    return InputNormalizer(config=config.data.normalizer, data_indices=data_indices, statistics=statistics)
+    return InputNormalizer(config=config.data.normalizers.state, statistics=statistics, data_indices=data_indices)
 
 
 def test_normalizer_not_inplace(input_normalizer) -> None:

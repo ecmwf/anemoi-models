@@ -106,7 +106,9 @@ class BaseImputer(BasePreprocessor, ABC):
         """Expand the subset of the mask to the correct shape."""
         return self.nan_locations[:, idx_src].expand(*x.shape[:-2], -1)
 
-    def transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
+    def transform(
+        self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Impute missing values in the input tensor."""
         if not in_place:
             x = x.clone()
@@ -127,7 +129,9 @@ class BaseImputer(BasePreprocessor, ABC):
                     self.loss_mask_training[:, idx_dst] = (~self.nan_locations[:, idx_src]).int()
 
         # Choose correct index based on number of variables
-        if x.shape[-1] == self.num_training_input_vars:
+        if data_index is not None:
+            index = data_index
+        elif x.shape[-1] == self.num_training_input_vars:
             index = self.index_training_input
         elif x.shape[-1] == self.num_inference_input_vars:
             index = self.index_inference_input
@@ -143,13 +147,18 @@ class BaseImputer(BasePreprocessor, ABC):
                 x[..., idx_dst][self._expand_subset_mask(x, idx_src)] = value
         return x
 
-    def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
+    def inverse_transform(
+        self, x: torch.Tensor, in_place: bool = True, data_index: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Impute missing values in the input tensor."""
         if not in_place:
             x = x.clone()
 
         # Replace original nans with nan again
-        if x.shape[-1] == self.num_training_output_vars:
+        # Choose correct index based on number of variables
+        if data_index is not None:
+            index = data_index
+        elif x.shape[-1] == self.num_training_output_vars:
             index = self.index_training_output
         elif x.shape[-1] == self.num_inference_output_vars:
             index = self.index_inference_output
