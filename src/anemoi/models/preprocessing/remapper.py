@@ -205,24 +205,34 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
                 f"({self.num_training_input_vars}) or inference shape ({self.num_inference_input_vars})",
             )
 
-        # create new tensor with target number of columns
-        x_remapped = torch.zeros(x.shape[:-1] + (target_number_columns,), dtype=x.dtype, device=x.device)
-        if in_place and not self.printed_preprocessor_warning:
+        if not in_place:
+            x = x.clone()
+        elif self.printed_preprocessor_warning:
             LOGGER.warning(
-                "Remapper (preprocessor) called with in_place=True. This preprocessor cannot be applied in_place as new columns are added to the tensors.",
+                "Remapper (preprocessor) called with in_place=True. Some operations of this preprocessor cannot be applied in_place as new columns are added to the tensors.",
             )
             self.printed_preprocessor_warning = True
 
+        # temporary storage for variables that are remapped before overwriting
+        x_remapped = x[..., index]
+        # add new columns to x
+        x = torch.cat(
+            (x, torch.zeros(x.shape[:-1] + (target_number_columns - x.shape[-1],), dtype=x.dtype, device=x.device)), -1
+        )
         # copy variables that are not remapped
-        x_remapped[..., : len(indices_keep)] = x[..., indices_keep]
+        x[..., : len(indices_keep)] = x[..., indices_keep]
 
         # Remap variables
+        remap_index = 0  # count variables because of None values
         for idx_dst, remapper, idx_src in zip(indices_remapped, self.remappers, index):
             if idx_src is not None:
                 for jj, ii in enumerate(idx_dst):
-                    x_remapped[..., ii] = remapper[jj](x[..., idx_src])
+                    x[..., ii] = remapper[jj](x_remapped[..., remap_index])
+                remap_index += 1
 
-        return x_remapped
+        # remove temporary storage
+        del x_remapped
+        return x
 
     def transform_loss_mask(self, mask: torch.Tensor) -> torch.Tensor:
         """Remap the loss mask.
@@ -283,23 +293,29 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
                 f"({self.num_remapped_training_output_vars}) or inference shape ({self.num_remapped_inference_output_vars})",
             )
 
-        # create new tensor with target number of columns
-        x_remapped = torch.zeros(x.shape[:-1] + (target_number_columns,), dtype=x.dtype, device=x.device)
-        if in_place and not self.printed_postprocessor_warning:
+        if not in_place:
+            x = x.clone()
+        elif self.printed_postprocessor_warning:
             LOGGER.warning(
-                "Remapper (preprocessor) called with in_place=True. This preprocessor cannot be applied in_place as new columns are added to the tensors.",
+                "Remapper (preprocessor) called with in_place=True. Some operations of this preprocessor cannot be applied in_place as new columns are added to the tensors.",
             )
             self.printed_postprocessor_warning = True
 
+        # temporary storage for variables that are remapped before overwriting
+        # this corresponds to the remapped variables at the end of the tensor
+        x_remapped = x[..., len(indices_keep) :]
         # copy variables that are not remapped
-        x_remapped[..., indices_keep] = x[..., : len(indices_keep)]
+        x[..., indices_keep] = x[..., : len(indices_keep)]
 
         # Backmap variables
         for idx_dst, backmapper, idx_src in zip(index, self.backmappers, indices_remapped):
             if idx_dst is not None:
-                x_remapped[..., idx_dst] = backmapper(x[..., idx_src])
-
-        return x_remapped
+                idx_src = [dd - len(indices_keep) for dd in idx_src]
+                x[..., idx_dst] = backmapper(x_remapped[..., idx_src])
+        # remove temporary storage
+        del x_remapped
+        # remove columns for remapped variables
+        return x[..., :target_number_columns]
 
 
 class Remapper(BaseRemapperVariable):
