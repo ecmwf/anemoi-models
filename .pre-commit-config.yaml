@@ -74,6 +74,5 @@ repos:
         - --check-protected  # Check protected methods
         - --check-class      # Check class docstrings
         - --disable=E113     # Disable empty docstrings
-        - --summary          # Print a summary
 ci:
   autoupdate_schedule: monthly
