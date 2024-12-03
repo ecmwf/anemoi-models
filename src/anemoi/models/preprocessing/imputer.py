@@ -119,7 +119,7 @@ class BaseImputer(BasePreprocessor, ABC):
 
         self.loss_mask_training = torch.ones(
             (x.shape[-2], len(self.data_indices.model.output.name_to_index)), device=x.device
-        ) 
+        )
 
         # Choose correct index based on number of variables
         if x.shape[-1] == self.num_training_input_vars:
@@ -143,10 +143,10 @@ class BaseImputer(BasePreprocessor, ABC):
         """Impute missing values in the input tensor."""
 
         return x
-    
-        # TODO: Does this inverse transform make sense? Why are we inserting NaNs again? what would we do at inference time? 
-        #       By not putting NaNs again, the model should know to predict the imputed values. 
-        #       Can anyone confirm? 
+
+        # TODO: Does this inverse transform make sense? Why are we inserting NaNs again? what would we do at inference time?
+        #       By not putting NaNs again, the model should know to predict the imputed values.
+        #       Can anyone confirm?
 
         if self.nan_locations is None:
             return x
