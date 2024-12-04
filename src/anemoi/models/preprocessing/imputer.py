@@ -9,6 +9,7 @@
 
 
 import logging
+import warnings
 from abc import ABC
 from typing import Optional
 
@@ -16,7 +17,6 @@ import torch
 
 from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.preprocessing import BasePreprocessor
-import warnings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,13 +106,12 @@ class BaseImputer(BasePreprocessor, ABC):
     def _expand_subset_mask(self, x: torch.Tensor, idx_src: int) -> torch.Tensor:
         """Expand the subset of the mask to the correct shape."""
         return self.nan_locations[:, idx_src].expand(*x.shape[:-2], -1)
-    
+
     def get_nans(self, x: torch.Tensor) -> torch.Tensor:
         """get NaN mask from data"""
         # The mask is only saved for the last two dimensions (grid, variable)
         idx = [slice(0, 1)] * (x.ndim - 2) + [slice(None), slice(None)]
         return torch.isnan(x[idx].squeeze())
-
 
     def transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
         """Impute missing values in the input tensor."""
@@ -235,11 +234,10 @@ class ConstantImputer(BaseImputer):
 class DynamicMixin:
     """Mixin to add dynamic imputation behavior."""
 
-    
     def get_nans(self, x: torch.Tensor) -> torch.Tensor:
         """Override to calculate NaN locations dynamically."""
         return torch.isnan(x)
-    
+
     def transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
         """Impute missing values in the input tensor."""
         if not in_place:
@@ -276,14 +274,26 @@ class DynamicMixin:
 
 
 class DynamicInputImputer(DynamicMixin, InputImputer):
-    def __init__(self, config=None, data_indices: IndexCollection | None = None, statistics: dict | None = None) -> None:
+    "Imputes missing values using the statistics supplied and a dynamic NaN map."
+
+    def __init__(
+        self, config=None, data_indices: IndexCollection | None = None, statistics: dict | None = None
+    ) -> None:
         super().__init__(config, data_indices, statistics)
-        warnings.warn("You are using a dynamic Imputer: NaN values will not be present in the model predictions. \
-                      The model will be trained to predict imputed values. This might deteriorate performances.")
+        warnings.warn(
+            "You are using a dynamic Imputer: NaN values will not be present in the model predictions. \
+                      The model will be trained to predict imputed values. This might deteriorate performances."
+        )
 
 
 class DynamicConstantImputer(DynamicMixin, ConstantImputer):
-    def __init__(self, config=None, data_indices: IndexCollection | None = None, statistics: dict | None = None) -> None:
+    "Imputes missing values using the constant value and a dynamic NaN map."
+
+    def __init__(
+        self, config=None, data_indices: IndexCollection | None = None, statistics: dict | None = None
+    ) -> None:
         super().__init__(config, data_indices, statistics)
-        warnings.warn("You are using a dynamic Imputer: NaN values will not be present in the model predictions. \
-                      The model will be trained to predict imputed values. This might deteriorate performances.")
+        warnings.warn(
+            "You are using a dynamic Imputer: NaN values will not be present in the model predictions. \
+                      The model will be trained to predict imputed values. This might deteriorate performances."
+        )
