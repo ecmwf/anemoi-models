@@ -28,6 +28,7 @@ from anemoi.models.distributed.graph import sync_tensor
 from anemoi.models.distributed.khop_edges import sort_edges_1hop_chunks
 from anemoi.models.distributed.transformer import shard_heads
 from anemoi.models.distributed.transformer import shard_sequence
+from anemoi.models.layers.attention import MultiHeadCrossAttention
 from anemoi.models.layers.attention import MultiHeadSelfAttention
 from anemoi.models.layers.conv import GraphConv
 from anemoi.models.layers.conv import GraphTransformerConv
@@ -105,6 +106,53 @@ class TransformerProcessorBlock(BaseBlock):
         return x
 
 
+class TransformerMapperBlock(TransformerProcessorBlock):
+    """Transformer mapper block with MultiHeadCrossAttention and MLPs."""
+
+    def __init__(
+        self,
+        num_channels: int,
+        hidden_dim: int,
+        num_heads: int,
+        activation: str,
+        window_size: int,
+        dropout_p: float = 0.0,
+    ):
+        super().__init__(
+            num_channels=num_channels,
+            hidden_dim=hidden_dim,
+            num_heads=num_heads,
+            activation=activation,
+            window_size=window_size,
+            dropout_p=dropout_p,
+        )
+
+        self.attention = MultiHeadCrossAttention(
+            num_heads=num_heads,
+            embed_dim=num_channels,
+            window_size=window_size,
+            bias=False,
+            is_causal=False,
+            dropout_p=dropout_p,
+        )
+
+        self.layer_norm_src = nn.LayerNorm(num_channels)
+
+    def forward(
+        self,
+        x: OptPairTensor,
+        shapes: list,
+        batch_size: int,
+        model_comm_group: Optional[ProcessGroup] = None,
+    ) -> Tensor:
+        # Need to be out of place for gradient propagation
+        x_src = self.layer_norm_src(x[0])
+        x_dst = self.layer_norm1(x[1])
+        x_dst = x_dst + self.attention((x_src, x_dst), shapes, batch_size, model_comm_group=model_comm_group)
+        x_dst = x_dst + self.mlp(self.layer_norm2(x_dst))
+        return (x_src, x_dst), None  # logic expects return of edge_attr
+
+
 class GraphConvBaseBlock(BaseBlock):
     """Message passing block with MLPs for node embeddings."""
 
@@ -180,7 +228,7 @@ class GraphConvProcessorBlock(GraphConvBaseBlock):
         **kwargs,
     ):
         super().__init__(
-            self,
+            self,  # is this correct?
             in_channels=in_channels,
             out_channels=out_channels,
             mlp_extra_layers=mlp_extra_layers,
