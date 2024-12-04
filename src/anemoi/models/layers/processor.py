@@ -27,6 +27,7 @@ from anemoi.models.layers.chunk import GraphTransformerProcessorChunk
 from anemoi.models.layers.chunk import TransformerProcessorChunk
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.mapper import GraphEdgeMixin
+from anemoi.utils.config import DotDict
 
 
 class BaseProcessor(nn.Module, ABC):
@@ -88,6 +89,7 @@ class TransformerProcessor(BaseProcessor):
     def __init__(
         self,
         num_layers: int,
+        layer_kernels: DotDict,
         *args,
         window_size: Optional[int] = None,
         num_channels: int = 128,
@@ -97,7 +99,6 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
-        layer_norm: Optional[dict] = None,
         **kwargs,
     ) -> None:
         """Initialize TransformerProcessor.
@@ -106,6 +107,9 @@ class TransformerProcessor(BaseProcessor):
         ----------
         num_layers : int
             Number of num_layers
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         window_size: int,
             1/2 size of shifted window for attention computation
         num_channels : int
@@ -128,6 +132,7 @@ class TransformerProcessor(BaseProcessor):
             cpu_offload=cpu_offload,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
+            #layer_kernels=layer_kernels,
         )
 
         self.build_layers(
@@ -139,7 +144,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
-            layer_norm=layer_norm,
+            layer_kernels=layer_kernels,
         )
 
         self.offload_layers(cpu_offload)

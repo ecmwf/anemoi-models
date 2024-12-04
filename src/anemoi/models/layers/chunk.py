@@ -24,6 +24,7 @@ from anemoi.models.layers.block import GraphConvProcessorBlock
 from anemoi.models.layers.block import GraphTransformerProcessorBlock
 from anemoi.models.layers.block import TransformerProcessorBlock
 from anemoi.models.layers.mlp import MLP
+from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class BaseProcessorChunk(nn.Module, ABC):
         num_layers: int,
         *args,
         activation: str = "GELU",
+        layer_norm: Optional[dict] = None,
         **kwargs,
     ) -> None:
         """Initialize BaseProcessorChunk."""
@@ -71,11 +73,11 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         num_channels: int,
         num_layers: int,
         window_size: int,
+        layer_kernels: DotDict,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
         dropout_p: float = 0.0,
-        layer_norm: Optional[dict] = None,
     ) -> None:
         """Initialize TransformerProcessor.
 
@@ -85,6 +87,11 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Number of channels
         num_layers : int
             Number of layers
+        window_size: int,
+            1/2 size of shifted window for attention computation
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
@@ -104,7 +111,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
-            layer_norm=layer_norm,
+            layer_kernels=layer_kernels
         )
 
     def forward(
@@ -127,6 +134,7 @@ class GNNProcessorChunk(BaseProcessorChunk):
         self,
         num_channels: int,
         num_layers: int,
+        layer_kernels: DotDict,
         mlp_extra_layers: int = 0,
         activation: str = "SiLU",
         edge_dim: Optional[int] = None,
@@ -139,6 +147,9 @@ class GNNProcessorChunk(BaseProcessorChunk):
             Channels of the message passing blocks.
         num_layers : int
             Number of message passing blocks.
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         mlp_extra_layers : int, optional
             Extra num_layers in MLP, by default 0
         activation : str, optional
@@ -166,6 +177,7 @@ class GNNProcessorChunk(BaseProcessorChunk):
             num_channels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
     def forward(
@@ -194,6 +206,7 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
         self,
         num_channels: int,
         num_layers: int,
+        layer_kernels: DotDict,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -207,6 +220,9 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
             Number of channels.
         num_layers : int
             Number of layers.
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
@@ -226,6 +242,7 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
             num_heads=num_heads,
             edge_dim=edge_dim,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
     def forward(
