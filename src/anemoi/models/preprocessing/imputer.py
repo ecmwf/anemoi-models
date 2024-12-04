@@ -277,7 +277,10 @@ class DynamicInputImputer(DynamicMixin, InputImputer):
     "Imputes missing values using the statistics supplied and a dynamic NaN map."
 
     def __init__(
-        self, config=None, data_indices: IndexCollection | None = None, statistics: dict | None = None
+        self,
+        config=None,
+        data_indices: Optional[IndexCollection] = None,
+        statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
         warnings.warn(
@@ -290,7 +293,10 @@ class DynamicConstantImputer(DynamicMixin, ConstantImputer):
     "Imputes missing values using the constant value and a dynamic NaN map."
 
     def __init__(
-        self, config=None, data_indices: IndexCollection | None = None, statistics: dict | None = None
+        self,
+        config=None,
+        data_indices: Optional[IndexCollection] = None,
+        statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
         warnings.warn(
