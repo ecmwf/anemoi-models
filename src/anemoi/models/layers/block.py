@@ -81,9 +81,8 @@ class TransformerProcessorBlock(BaseBlock):
 
         self.layer_norm1 = nn.LayerNorm(num_channels)
 
-        self.grid_lat_coslon_sinlon = grid_lat_coslon_sinlon
+        self.register_buffer("grid_lat_coslon_sinlon", grid_lat_coslon_sinlon)
         if self.grid_lat_coslon_sinlon is not None:
-            self.grid_lat_coslon_sinlon = self.grid_lat_coslon_sinlon
             self.pos_embedder = nn.Linear(3, num_channels) # assuming that we have 3 position features, lat and cos / sin of lon
 
         self.attention = MultiHeadSelfAttention(
@@ -106,7 +105,7 @@ class TransformerProcessorBlock(BaseBlock):
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
     ) -> Tensor:
         if self.grid_lat_coslon_sinlon is not None:
-            pos_embedding = self.pos_embedder(self.grid_lat_coslon_sinlon.to(x.device))
+            pos_embedding = self.pos_embedder(self.grid_lat_coslon_sinlon)
             pos_embedding = pos_embedding.repeat(batch_size, 1)
             x = x + pos_embedding
         
