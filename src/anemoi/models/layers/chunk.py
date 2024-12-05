@@ -13,6 +13,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Optional
 
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -37,6 +38,7 @@ class BaseProcessorChunk(nn.Module, ABC):
         num_layers: int,
         *args,
         activation: str = "GELU",
+        layer_norm: Optional[dict] = None,
         **kwargs,
     ) -> None:
         """Initialize BaseProcessorChunk."""
@@ -71,6 +73,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         num_channels: int,
         num_layers: int,
         window_size: int,
+        layer_kernels: DotDict,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -84,6 +87,11 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Number of channels
         num_layers : int
             Number of layers
+        window_size: int,
+            1/2 size of shifted window for attention computation
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
@@ -103,13 +111,19 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
+            layer_kernels=layer_kernels,
         )
 
     def forward(
-        self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
+        self,
+        x: Tensor,
+        shapes: list,
+        batch_size: int,
+        model_comm_group: Optional[ProcessGroup] = None,
+        **kwargs,
     ) -> Tensor:
         for i in range(self.num_layers):
-            x = self.blocks[i](x, shapes, batch_size, model_comm_group=model_comm_group)
+            x = self.blocks[i](x, shapes, batch_size, model_comm_group=model_comm_group, **kwargs)
 
         return (x,)  # return tuple for consistency with other processors
 
@@ -121,6 +135,7 @@ class GNNProcessorChunk(BaseProcessorChunk):
         self,
         num_channels: int,
         num_layers: int,
+        layer_kernels: DotDict,
         mlp_extra_layers: int = 0,
         activation: str = "SiLU",
         edge_dim: Optional[int] = None,
@@ -133,6 +148,9 @@ class GNNProcessorChunk(BaseProcessorChunk):
             Channels of the message passing blocks.
         num_layers : int
             Number of message passing blocks.
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         mlp_extra_layers : int, optional
             Extra num_layers in MLP, by default 0
         activation : str, optional
@@ -160,6 +178,7 @@ class GNNProcessorChunk(BaseProcessorChunk):
             num_channels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
     def forward(
@@ -188,6 +207,7 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
         self,
         num_channels: int,
         num_layers: int,
+        layer_kernels: DotDict,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -201,6 +221,9 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
             Number of channels.
         num_layers : int
             Number of layers.
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
@@ -220,6 +243,7 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
             num_heads=num_heads,
             edge_dim=edge_dim,
             activation=activation,
+            layer_kernels=layer_kernels,
         )
 
     def forward(

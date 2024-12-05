@@ -11,6 +11,7 @@
 from abc import ABC
 from typing import Optional
 
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
@@ -88,6 +89,7 @@ class TransformerProcessor(BaseProcessor):
     def __init__(
         self,
         num_layers: int,
+        layer_kernels: DotDict,
         *args,
         window_size: Optional[int] = None,
         num_channels: int = 128,
@@ -105,6 +107,9 @@ class TransformerProcessor(BaseProcessor):
         ----------
         num_layers : int
             Number of num_layers
+        layer_kernels : DotDict
+            A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
+            Defined in config/models/<model>.yaml
         window_size: int,
             1/2 size of shifted window for attention computation
         num_channels : int
@@ -127,6 +132,7 @@ class TransformerProcessor(BaseProcessor):
             cpu_offload=cpu_offload,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
+            # layer_kernels=layer_kernels,
         )
 
         self.build_layers(
@@ -138,6 +144,7 @@ class TransformerProcessor(BaseProcessor):
             window_size=window_size,
             activation=activation,
             dropout_p=dropout_p,
+            layer_kernels=layer_kernels,
         )
 
         self.offload_layers(cpu_offload)
@@ -157,7 +164,7 @@ class TransformerProcessor(BaseProcessor):
                 model_comm_group.size() == 1 or batch_size == 1
             ), "Only batch size of 1 is supported when model is sharded accross GPUs"
 
-        (x,) = self.run_layers((x,), shape_nodes, batch_size, model_comm_group)
+        (x,) = self.run_layers((x,), shape_nodes, batch_size, model_comm_group, **kwargs)
 
         return x
 
