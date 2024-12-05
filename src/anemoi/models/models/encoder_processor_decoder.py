@@ -14,13 +14,13 @@ from typing import Optional
 import einops
 import torch
 from anemoi.utils.config import DotDict
+from hydra.errors import InstantiationException
 from hydra.utils import instantiate
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
 from torch.utils.checkpoint import checkpoint
 from torch_geometric.data import HeteroData
-from hydra.errors import InstantiationException
 
 from anemoi.models.distributed.shapes import get_shape_shards
 from anemoi.models.layers.graph import NamedNodesAttributes
@@ -65,7 +65,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self.node_attributes = NamedNodesAttributes(model_config.model.trainable_parameters.hidden, self._graph_data)
 
         input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
-        
+
         # read config.model.layer_kernels to get the implementation for certain layers
         self._load_layer_kernels(model_config)
 
@@ -242,13 +242,13 @@ class AnemoiModelEncProcDec(nn.Module):
     def _load_layer_kernels(self, config: DotDict) -> None:
 
         # If self.layer_kernels entry is missing from the config, use torch.nn by default
-        default_kernels=DotDict()
+        default_kernels = DotDict()
         default_kernels["Linear"] = DotDict({"_target_": "torch.nn.Linear", "_partial_": True})
         default_kernels["LayerNorm"] = DotDict({"_target_": "torch.nn.LayerNorm", "_partial_": True})
-        
-        #self.layer_kernels = config.get("model.layer_kernels", default_kernels) #Always uses default kernels...
-        self.layer_kernels= config.model.layer_kernels
-       
+
+        # self.layer_kernels = config.get("model.layer_kernels", default_kernels) #Always uses default kernels...
+        self.layer_kernels = config.model.layer_kernels
+
         # Loop through all kernels in the layer_kernels config entry and try import them
         for kernel in self.layer_kernels:
             kernel_entry = self.layer_kernels[kernel]

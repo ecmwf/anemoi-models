@@ -25,10 +25,10 @@ except ImportError:
 else:
     _FLASH_ATTENTION_AVAILABLE = True
 
+from anemoi.utils.config import DotDict
+
 from anemoi.models.distributed.transformer import shard_heads
 from anemoi.models.distributed.transformer import shard_sequence
-
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.dropout_p = dropout_p
         self.is_causal = is_causal
 
-        linear=layer_kernels["Linear"]
+        linear = layer_kernels["Linear"]
         self.lin_qkv = linear(embed_dim, 3 * embed_dim, bias=bias)
         self.attention = attn_func
 

@@ -11,11 +11,10 @@
 import logging
 
 import torch
+from anemoi.utils.config import DotDict
 from torch import nn
 
-from anemoi.models.layers.normalization import AutocastLayerNorm
 from anemoi.models.layers.utils import CheckpointWrapper
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +72,7 @@ class MLP(nn.Module):
 
         Linear = layer_kernels["Linear"]
         LayerNorm = layer_kernels["LayerNorm"]
-        
+
         try:
             act_func = getattr(nn, activation)
         except AttributeError as ae:

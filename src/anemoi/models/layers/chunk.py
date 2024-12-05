@@ -13,6 +13,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Optional
 
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -24,7 +25,6 @@ from anemoi.models.layers.block import GraphConvProcessorBlock
 from anemoi.models.layers.block import GraphTransformerProcessorBlock
 from anemoi.models.layers.block import TransformerProcessorBlock
 from anemoi.models.layers.mlp import MLP
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -111,18 +111,19 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
-            layer_kernels=layer_kernels
+            layer_kernels=layer_kernels,
         )
 
     def forward(
-        self, x: Tensor, shapes: list, batch_size: int,
+        self,
+        x: Tensor,
+        shapes: list,
+        batch_size: int,
         model_comm_group: Optional[ProcessGroup] = None,
         **kwargs,
     ) -> Tensor:
         for i in range(self.num_layers):
-            x = self.blocks[i](x, shapes, batch_size,
-                               model_comm_group=model_comm_group,
-                               **kwargs)
+            x = self.blocks[i](x, shapes, batch_size, model_comm_group=model_comm_group, **kwargs)
 
         return (x,)  # return tuple for consistency with other processors
 

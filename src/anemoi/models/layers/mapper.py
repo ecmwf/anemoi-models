@@ -14,6 +14,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
@@ -31,7 +32,6 @@ from anemoi.models.layers.block import GraphConvMapperBlock
 from anemoi.models.layers.block import GraphTransformerMapperBlock
 from anemoi.models.layers.graph import TrainableTensor
 from anemoi.models.layers.mlp import MLP
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -229,8 +229,8 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             activation=activation,
             layer_kernels=layer_kernels,
         )
-        
-        #Linear = layer_kernels.get("Linear", torch.nn.Linear)
+
+        # Linear = layer_kernels.get("Linear", torch.nn.Linear)
         Linear = layer_kernels["Linear"]
 
         self._register_edges(sub_graph, sub_graph_edge_attributes, src_grid_size, dst_grid_size, trainable_size)
@@ -245,7 +245,7 @@ class GraphTransformerBaseMapper(GraphEdgeMixin, BaseMapper):
             edge_dim=self.edge_dim,
             activation=activation,
             num_chunks=num_chunks,
-            layer_kernels=layer_kernels
+            layer_kernels=layer_kernels,
         )
 
         self.offload_layers(cpu_offload)

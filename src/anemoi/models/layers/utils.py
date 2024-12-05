@@ -8,7 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 
-from torch import Tensor
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 

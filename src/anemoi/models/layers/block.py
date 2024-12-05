@@ -16,6 +16,7 @@ from typing import Optional
 
 import einops
 import torch
+from anemoi.utils.config import DotDict
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -32,7 +33,6 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
 from anemoi.models.layers.conv import GraphConv
 from anemoi.models.layers.conv import GraphTransformerConv
 from anemoi.models.layers.mlp import MLP
-from anemoi.utils.config import DotDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -100,9 +100,7 @@ class TransformerProcessorBlock(BaseBlock):
         )
 
     def forward(
-        self, x: Tensor, shapes: list, batch_size: int,
-        model_comm_group: Optional[ProcessGroup] = None,
-        **kwargs
+        self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None, **kwargs
     ) -> Tensor:
         # Need to be out of place for gradient propagation
         x = x + self.attention(self.layer_norm1(x), shapes, batch_size, model_comm_group=model_comm_group)
@@ -348,8 +346,8 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         self.num_chunks = num_chunks
 
-        linear=layer_kernels['Linear']
-        layerNorm=layer_kernels['LayerNorm']
+        linear = layer_kernels["Linear"]
+        layerNorm = layer_kernels["LayerNorm"]
         self.lin_key = linear(in_channels, num_heads * self.out_channels_conv)
         self.lin_query = linear(in_channels, num_heads * self.out_channels_conv)
         self.lin_value = linear(in_channels, num_heads * self.out_channels_conv)
@@ -627,8 +625,7 @@ class GraphTransformerProcessorBlock(GraphTransformerBaseBlock):
             bias=bias,
             activation=activation,
             num_chunks=num_chunks,
-            update_src_nodes=update_src_nodes
-            **kwargs,
+            update_src_nodes=update_src_nodes**kwargs,
         )
 
     def forward(
