@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import logging
 from typing import Optional
 
 import torch
@@ -16,6 +17,8 @@ from torch import Tensor
 from torch.distributed.distributed_c10d import ProcessGroup
 
 from anemoi.models.distributed.utils import get_memory_format
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _headsalltoall(input_: Tensor, shapes: list, group: Optional[ProcessGroup] = None) -> Tensor:
@@ -82,6 +85,71 @@ def _seqalltoall(input_: Tensor, shapes: list, group: Optional[ProcessGroup] = N
     return torch.cat(output_list, dim=-3).contiguous(memory_format=input_format)
 
 
+def _halo_exchange(input_: Tensor, halo_size: int, mgroup: ProcessGroup, bwd: bool = False) -> Tensor:
+    """Exchange halo regions between ranks.
+
+    Send halo regions to the left and right and receive from the right and left and extend the input tensor.
+    Expected format is (batch_size, sequence_length, channels).
+
+    Parameters
+    ----------
+    input_ : Tensor
+        Input tensor
+    halo_size : int
+        Halo size (left, right)
+    mgroup : ProcessGroup
+        Model communication group
+    bwd : bool
+        Flag to indicate if backward pass
+
+    Returns
+    -------
+    Tensor
+        Extended input tensor
+    """
+    end = input_.shape[-2]
+
+    left_halo = input_[:, :halo_size, :]
+    right_halo = input_[:, end - halo_size :, :]
+
+    left_send = input_[:, halo_size : 2 * halo_size, :]
+    right_send = input_[:, end - 2 * halo_size : end - halo_size, :]
+
+    if bwd:  # reverse halo exchange
+        left_halo, left_send = left_send, left_halo
+        right_halo, right_send = right_send, right_halo
+
+    my_rank = dist.get_rank(mgroup)
+    group_size = dist.get_world_size(mgroup)
+    left_rank = dist.get_rank(mgroup) - 1
+    right_rank = dist.get_rank(mgroup) + 1
+
+    if my_rank % 2 != 0:
+        # send left (can't be rank 0)
+        dist.send(left_send, left_rank, group=mgroup)
+        # receive left
+        dist.recv(left_halo, left_rank, group=mgroup)
+
+        if my_rank != group_size - 1:
+            # send right
+            dist.send(right_send, right_rank, group=mgroup)
+            # receive right
+            dist.recv(right_halo, right_rank, group=mgroup)
+    else:
+        if my_rank != group_size - 1:
+            # receive right
+            dist.recv(right_halo, right_rank, group=mgroup)
+            # send right
+            dist.send(right_send, right_rank, group=mgroup)
+        if my_rank != 0:
+            # receive left
+            dist.recv(left_halo, left_rank, group=mgroup)
+            # send left
+            dist.send(left_send, left_rank, group=mgroup)
+
+    return input_
+
+
 def shard_heads(input_: Tensor, shapes: list, mgroup: ProcessGroup) -> Tensor:
     """Sync tensor.
 
@@ -130,6 +198,28 @@ def shard_sequence(input_: Tensor, shapes: list, mgroup: ProcessGroup) -> Tensor
     return _SplitSequenceParallelSection.apply(input_, shapes, mgroup)
 
 
+def halo_exchange(x: Tensor, halo_size: int, mgroup: ProcessGroup) -> None:
+    """Exchange halo regions between ranks,
+
+    Parameters
+    ----------
+    x : Tensor
+        Input tensor
+    halo_size : int
+        Halo size (left, right)
+    mgroup : ProcessGroup
+        Model communication group
+    """
+    # pad tensor with halo regions
+    halo_size_left = halo_size if (mgroup and dist.get_rank(mgroup) != 0) else 0
+    halo_size_right = halo_size if (mgroup and dist.get_rank(mgroup) != dist.get_world_size(mgroup) - 1) else 0
+    x_pad = torch.nn.functional.pad(x, pad=(0, 0, halo_size_left, halo_size_right), mode="constant", value=0)
+
+    out = _HaloExchange.apply(x_pad, halo_size, mgroup)
+
+    return out, halo_size_left, halo_size_right
+
+
 class _SplitHeadsParallelSection(torch.autograd.Function):
     """Sync the input from parallel section."""
 
@@ -171,4 +261,29 @@ class _SplitSequenceParallelSection(torch.autograd.Function):
                 None,
                 None,
             )
+        return grad_output, None, None
+
+
+class _HaloExchange(torch.autograd.Function):
+    """Exchange halo regions between ranks."""
+
+    @staticmethod
+    def forward(ctx, input_, halo_size_, mgroup_):
+        ctx.halo_size = halo_size_
+        ctx.mgroup = mgroup_
+
+        if mgroup_:
+            return _halo_exchange(input_, halo_size_, mgroup_)
+        return input_
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        if ctx.mgroup:
+            return (
+                # not sure if this works yet, need to test
+                _halo_exchange(grad_output, ctx.halo_size, ctx.mgroup, bwd=True),
+                None,
+                None,
+            )
+
         return grad_output, None, None
