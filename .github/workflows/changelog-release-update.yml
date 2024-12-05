@@ -28,6 +28,7 @@ jobs:
       with:
         latest-version: ${{ github.event.release.tag_name }}
         heading-text: ${{ github.event.release.name }}
+        release-notes: ${{ github.event.release.body }}
 
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v6
