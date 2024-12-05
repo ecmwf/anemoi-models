@@ -10,8 +10,6 @@ Keep it human-readable, your future self will thank you!
 
 ## [Unreleased](https://github.com/ecmwf/anemoi-models/compare/0.3.0...HEAD)
 
-- Add synchronisation workflow
-
 ### Added
 
 - New AnemoiModelEncProcDecHierarchical class available in models [#37](https://github.com/ecmwf/anemoi-models/pull/37)
@@ -27,6 +25,8 @@ Keep it human-readable, your future self will thank you!
 - Added dynamic NaN masking for the imputer class with two new classes: DynamicInputImputer, DynamicConstantImputer [#89](https://github.com/ecmwf/anemoi-models/pull/89)
 - New `NamedNodesAttributes` class to handle node attributes in a more flexible way [#64](https://github.com/ecmwf/anemoi-models/pull/64)
 - Contributors file [#69](https://github.com/ecmwf/anemoi-models/pull/69)
+- Add synchronisation workflow
+- Refactor base functionality of `AnemoiEncProcDecModel` into abstract class. [#79](https://github.com/ecmwf/anemoi-models/pull/79/)
 
 ### Changed
 - Bugfixes for CI
