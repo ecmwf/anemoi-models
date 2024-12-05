@@ -83,7 +83,9 @@ class TransformerProcessorBlock(BaseBlock):
 
         self.register_buffer("grid_lat_coslon_sinlon", grid_lat_coslon_sinlon)
         if self.grid_lat_coslon_sinlon is not None:
-            self.pos_embedder = nn.Linear(3, num_channels) # assuming that we have 3 position features, lat and cos / sin of lon
+            self.pos_embedder = nn.Linear(
+                3, num_channels
+            )  # assuming that we have 3 position features, lat and cos / sin of lon
 
         self.attention = MultiHeadSelfAttention(
             num_heads=num_heads,
@@ -108,7 +110,7 @@ class TransformerProcessorBlock(BaseBlock):
             pos_embedding = self.pos_embedder(self.grid_lat_coslon_sinlon)
             pos_embedding = pos_embedding.repeat(batch_size, 1)
             x = x + pos_embedding
-        
+
         # Need to be out of place for gradient propagation
         x = x + self.attention(self.layer_norm1(x), shapes, batch_size, model_comm_group=model_comm_group)
         x = x + self.mlp(self.layer_norm2(x))
