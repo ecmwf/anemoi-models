@@ -38,7 +38,7 @@ class MultiHeadSelfAttention(nn.Module):
         is_causal: bool = False,
         window_size: Optional[int] = None,
         dropout_p: float = 0.0,
-        attention_implementation: str = "flex attention",
+        attention_implementation: str = "flash_attention",
         softcap: float = None,
         use_alibi_slopes: bool = False,
     ):
@@ -98,9 +98,9 @@ class MultiHeadSelfAttention(nn.Module):
 
     def set_attention_function(self):
         attn_funcs = {
-            "flash attention": FlashAttentionWrapper,
-            "flex attention": FlexAttentionWrapper,
-            "scaled dot product attention": TorchAttentionWrapper,
+            "flash_attention": FlashAttentionWrapper,
+            "flex_attention": FlexAttentionWrapper,
+            "scaled_dot_product_attention": TorchAttentionWrapper,
         }
         if self.attention_implementation in attn_funcs:
             LOGGER.info(f"attention.py: using {self.attention_implementation}")
@@ -168,6 +168,22 @@ class TorchAttentionWrapper(nn.Module):
         from torch.nn.functional import scaled_dot_product_attention
 
         self.attention = scaled_dot_product_attention
+        self.mask = None
+        self.window_size = None
+
+    def update_mask(self, seq_len, window_size: int, device: str):
+        update_mask = (
+            self.mask is None or self.window_size != window_size or tuple(self.mask.shape) != (seq_len, seq_len)
+        )
+        if update_mask:
+            self.window_size = window_size
+            self.mask = (
+                torch.abs(
+                    torch.arange(seq_len, device=device).unsqueeze(0)
+                    - torch.arange(seq_len, device=device).unsqueeze(1)
+                )
+                <= window_size
+            )
 
     def forward(
         self,
@@ -190,17 +206,21 @@ class TorchAttentionWrapper(nn.Module):
                 "Error. Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes."
             )
         if window_size is not None:
-            SystemError(
-                "Error. Sliding window not supported by Pytorchs SDPA. please switch to flash attention or disable sliding window."
+            self.update_mask(query.shape[-2], window_size=window_size, device=query.device)
+        else:
+            self.mask = None
+
+        with torch.nn.attention.sdpa_kernel(backends=[torch.nn.attention.SDPBackend.MATH]):
+            out = self.attention(
+                query,
+                key,
+                value,
+                attn_mask=self.mask,
+                is_causal=causal,
+                dropout_p=dropout_p,
             )
 
-        return self.attention(
-            query,
-            key,
-            value,
-            is_causal=causal,
-            dropout_p=dropout_p,
-        )
+        return out
 
 
 class FlexAttentionWrapper(nn.Module):
