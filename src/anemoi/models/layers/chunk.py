@@ -75,7 +75,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
         dropout_p: float = 0.0,
-        attention_implementation: str = "flex attention",
+        attention_implementation: str = "flash_attention",
         softcap: float = None,
         use_alibi_slopes: bool = None,
     ) -> None:
@@ -97,7 +97,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Dropout probability used for multi-head self attention, default 0.0
         attention_implementation: str, optional
             A predefined string which selects which underlying attention
-            implementation, by default "flex attention"
+            implementation, by default "flash_attention"
         softcap : float, optional
             Anything > 0 activates softcapping flash attention, by default None
         use_alibi_slopes : bool, optional

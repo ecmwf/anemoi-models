@@ -62,7 +62,7 @@ class MultiHeadSelfAttention(nn.Module):
             Anything > 0 activates softcapping attention, by default None
         attention_implementation: str, optional
             A predefined string which selects which underlying attention
-            implementation, by default "flex attention"
+            implementation, by default "flash_attention"
         use_alibi_slopes : bool, optional
             Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
             to the attention score of query i and key j, where alibi_slope
