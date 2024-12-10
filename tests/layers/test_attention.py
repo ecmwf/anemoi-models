@@ -22,12 +22,16 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
     num_heads=st.integers(min_value=1, max_value=50),
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
+    softcap=st.floats(min_value=0.0, max_value=1.0),
+    attention_implementation=st.sampled_from(["scaled_dot_product_attention", "flex_attention"]),
 )
-def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout_p):
+def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout_p, softcap, attention_implementation):
     embed_dim = (
         num_heads * embed_dim_multiplier
     )  # TODO: Make assert in MHSA to check if embed_dim is divisible by num_heads
-    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p)
+    mhsa = MultiHeadSelfAttention(
+        num_heads, embed_dim, dropout_p=dropout_p, attention_implementation=attention_implementation, softcap=softcap
+    )
 
     assert isinstance(mhsa, nn.Module)
     assert mhsa.num_heads == num_heads
@@ -42,11 +46,17 @@ def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout
     num_heads=st.integers(min_value=1, max_value=20),
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
+    softcap=st.floats(min_value=0.0, max_value=1.0),
+    attention_implementation=st.sampled_from(["scaled_dot_product_attention"]),
 )
 @settings(deadline=None)
-def test_multi_head_self_attention_forward(batch_size, num_heads, embed_dim_multiplier, dropout_p):
+def test_multi_head_self_attention_forward(
+    batch_size, num_heads, embed_dim_multiplier, dropout_p, softcap, attention_implementation
+):
     embed_dim = num_heads * embed_dim_multiplier
-    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p)
+    mhsa = MultiHeadSelfAttention(
+        num_heads, embed_dim, dropout_p=dropout_p, attention_implementation=attention_implementation, softcap=softcap
+    )
 
     x = torch.randn(batch_size * 2, embed_dim)
     shapes = [list(x.shape)]
@@ -61,10 +71,16 @@ def test_multi_head_self_attention_forward(batch_size, num_heads, embed_dim_mult
     num_heads=st.integers(min_value=1, max_value=20),
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
+    softcap=st.floats(min_value=0.0, max_value=1.0),
+    attention_implementation=st.sampled_from(["scaled_dot_product_attention"]),
 )
-def test_multi_head_self_attention_backward(batch_size, num_heads, embed_dim_multiplier, dropout_p):
+def test_multi_head_self_attention_backward(
+    batch_size, num_heads, embed_dim_multiplier, dropout_p, softcap, attention_implementation
+):
     embed_dim = num_heads * embed_dim_multiplier
-    mhsa = MultiHeadSelfAttention(num_heads, embed_dim, dropout_p=dropout_p)
+    mhsa = MultiHeadSelfAttention(
+        num_heads, embed_dim, dropout_p=dropout_p, attention_implementation=attention_implementation, softcap=softcap
+    )
 
     x = torch.randn(batch_size * 2, embed_dim, requires_grad=True)
     shapes = [list(x.shape)]
