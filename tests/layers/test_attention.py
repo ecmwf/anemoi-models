@@ -23,7 +23,7 @@ from anemoi.models.layers.attention import MultiHeadSelfAttention
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
     softcap=st.floats(min_value=0.0, max_value=1.0),
-    attention_implementation=st.sampled_from(["scaled dot product attention", "flex attention"]),
+    attention_implementation=st.sampled_from(["scaled_dot_product_attention", "flex_attention"]),
 )
 def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout_p, softcap, attention_implementation):
     embed_dim = (
@@ -47,7 +47,7 @@ def test_multi_head_self_attention_init(num_heads, embed_dim_multiplier, dropout
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
     softcap=st.floats(min_value=0.0, max_value=1.0),
-    attention_implementation=st.sampled_from(["scaled dot product attention"]),
+    attention_implementation=st.sampled_from(["scaled_dot_product_attention"]),
 )
 @settings(deadline=None)
 def test_multi_head_self_attention_forward(
@@ -72,7 +72,7 @@ def test_multi_head_self_attention_forward(
     embed_dim_multiplier=st.integers(min_value=1, max_value=10),
     dropout_p=st.floats(min_value=0.0, max_value=1.0),
     softcap=st.floats(min_value=0.0, max_value=1.0),
-    attention_implementation=st.sampled_from(["scaled dot product attention"]),
+    attention_implementation=st.sampled_from(["scaled_dot_product_attention"]),
 )
 def test_multi_head_self_attention_backward(
     batch_size, num_heads, embed_dim_multiplier, dropout_p, softcap, attention_implementation
