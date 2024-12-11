@@ -75,6 +75,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
         dropout_p: float = 0.0,
+        shard_strategy: str = "shard_heads",
     ) -> None:
         """Initialize TransformerProcessor.
 
@@ -103,6 +104,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             activation=activation,
             window_size=window_size,
             dropout_p=dropout_p,
+            shard_strategy=shard_strategy,
         )
 
     def forward(
