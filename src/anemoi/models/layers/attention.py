@@ -109,8 +109,7 @@ class MultiHeadSelfAttention(nn.Module):
                 )
                 for t in (query, key, value)
             )
-
-        else:
+        else:  # shard_heads
             query, key, value = self.lin_qkv(x).chunk(3, -1)
 
             query, key, value = (
@@ -123,7 +122,6 @@ class MultiHeadSelfAttention(nn.Module):
                 for t in (query, key, value)
             )
 
-        if self.shard_strategy == "shard_heads":
             query = shard_heads(query, shapes=shapes, mgroup=model_comm_group)
             key = shard_heads(key, shapes=shapes, mgroup=model_comm_group)
             value = shard_heads(value, shapes=shapes, mgroup=model_comm_group)
@@ -147,8 +145,9 @@ class MultiHeadSelfAttention(nn.Module):
 
         if self.shard_strategy == "shard_sequence":
             out = out[:, :, halo_size_left : out.shape[-2] - halo_size_right, :]  # remove halos
-        if self.shard_strategy == "shard_heads":
+        else:  # shard_heads
             out = shard_sequence(out, shapes=shapes, mgroup=model_comm_group)
+
         out = einops.rearrange(out, "batch heads grid vars -> (batch grid) (heads vars)")
 
         out = self.projection(out)

@@ -9,6 +9,7 @@
 
 
 import logging
+import os
 from typing import Optional
 
 import torch
@@ -109,43 +110,95 @@ def _halo_exchange(input_: Tensor, halo_size: int, mgroup: ProcessGroup, bwd: bo
     """
     end = input_.shape[-2]
 
-    left_halo = input_[:, :halo_size, :]
-    right_halo = input_[:, end - halo_size :, :]
+    left_halo_slice = slice(0, halo_size)
+    right_halo_slice = slice(end - halo_size, end)
+    left_send_slice = slice(halo_size, 2 * halo_size)
+    right_send_slice = slice(end - 2 * halo_size, end - halo_size)
 
-    left_send = input_[:, halo_size : 2 * halo_size, :]
-    right_send = input_[:, end - 2 * halo_size : end - halo_size, :]
+    if bwd:  # reverse halo exchange direction
+        left_halo_slice, left_send_slice = left_send_slice, left_halo_slice
+        right_halo_slice, right_send_slice = right_send_slice, right_halo_slice
 
-    if bwd:  # reverse halo exchange
-        left_halo, left_send = left_send, left_halo
-        right_halo, right_send = right_send, right_halo
+    left_send = input_[:, left_send_slice, :]
+    right_send = input_[:, right_send_slice, :]
+    left_halo = torch.empty_like(right_send, device=input_.device)
+    right_halo = torch.empty_like(left_send, device=input_.device)
 
-    my_rank = dist.get_rank(mgroup)
+    global_rank = dist.get_rank()
+    local_rank = dist.get_rank(mgroup)
     group_size = dist.get_world_size(mgroup)
-    left_rank = dist.get_rank(mgroup) - 1
-    right_rank = dist.get_rank(mgroup) + 1
+    left_rank = global_rank - 1 if local_rank > 0 else None
+    right_rank = global_rank + 1 if local_rank < group_size - 1 else None
 
-    if my_rank % 2 != 0:
-        # send left (can't be rank 0)
-        dist.send(left_send, left_rank, group=mgroup)
-        # receive left
-        dist.recv(left_halo, left_rank, group=mgroup)
+    match os.environ.get("HALO_COMM", "SENDRECV"):
+        case "SENDRECV":
+            if local_rank % 2 != 0:
+                if left_rank is not None:
+                    dist.send(left_send, left_rank, group=mgroup)
+                    dist.recv(left_halo, left_rank, group=mgroup)
+                if right_rank is not None:
+                    dist.send(right_send, right_rank, group=mgroup)
+                    dist.recv(right_halo, right_rank, group=mgroup)
+            else:
+                if right_rank is not None:
+                    dist.recv(right_halo, right_rank, group=mgroup)
+                    dist.send(right_send, right_rank, group=mgroup)
+                if left_rank is not None:
+                    dist.recv(left_halo, left_rank, group=mgroup)
+                    dist.send(left_send, left_rank, group=mgroup)
+        case "ISENDRECV":
+            reqs = []
+            if local_rank % 2 != 0:
+                if left_rank is not None:
+                    reqs.append(dist.isend(left_send, left_rank, group=mgroup))
+                    reqs.append(dist.irecv(left_halo, left_rank, group=mgroup))
+                if right_rank is not None:
+                    reqs.append(dist.isend(right_send, right_rank, group=mgroup))
+                    reqs.append(dist.irecv(right_halo, right_rank, group=mgroup))
+            else:
+                if right_rank is not None:
+                    reqs.append(dist.irecv(right_halo, right_rank, group=mgroup))
+                    reqs.append(dist.isend(right_send, right_rank, group=mgroup))
+                if left_rank is not None:
+                    reqs.append(dist.irecv(left_halo, left_rank, group=mgroup))
+                    reqs.append(dist.isend(left_send, left_rank, group=mgroup))
+            for req in reqs:
+                req.wait()
+        case "ALLGATHER":
+            combined_send = torch.cat([left_send, right_send], dim=1).contiguous()
+            halos = [torch.empty_like(combined_send) for _ in range(group_size)]
+            dist.all_gather(halos, combined_send, group=mgroup)
+            left_halo = halos[local_rank - 1][:, halo_size:, :] if local_rank > 0 else None
+            right_halo = halos[local_rank + 1][:, :halo_size, :] if local_rank < group_size - 1 else None
+        case "ALLTOALL":
+            input_list = [torch.empty(1, device=input_.device) for _ in range(group_size)]
+            if left_rank is not None:
+                input_list[left_rank] = left_send
+            if right_rank is not None:
+                input_list[right_rank] = right_send
+            output_list = [torch.empty_like(input_i, device=input_.device) for input_i in input_list]
+            dist.all_to_all(output_list, input_list, group=mgroup)
 
-        if my_rank != group_size - 1:
-            # send right
-            dist.send(right_send, right_rank, group=mgroup)
-            # receive right
-            dist.recv(right_halo, right_rank, group=mgroup)
+            if left_rank is not None:
+                left_halo = output_list[left_rank]
+            if right_rank is not None:
+                right_halo = output_list[right_rank]
+        case _:
+            raise ValueError(f"Unknown halo communication strategy {os.environ['HALO_COMM']}")
+
+    if bwd:
+        # remove gradient contribution from send regions and add halo regions
+        if left_rank is not None:
+            input_[:, left_send_slice, :] = 0
+            input_[:, left_halo_slice, :] += left_halo
+        if right_rank is not None:
+            input_[:, right_send_slice, :] = 0
+            input_[:, right_halo_slice, :] += right_halo
     else:
-        if my_rank != group_size - 1:
-            # receive right
-            dist.recv(right_halo, right_rank, group=mgroup)
-            # send right
-            dist.send(right_send, right_rank, group=mgroup)
-        if my_rank != 0:
-            # receive left
-            dist.recv(left_halo, left_rank, group=mgroup)
-            # send left
-            dist.send(left_send, left_rank, group=mgroup)
+        if left_rank is not None:
+            input_[:, left_halo_slice, :] = left_halo
+        if right_rank is not None:
+            input_[:, right_halo_slice, :] = right_halo
 
     return input_
 
