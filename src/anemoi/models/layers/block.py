@@ -13,7 +13,6 @@ import os
 from abc import ABC
 from abc import abstractmethod
 from typing import Optional
-from hydra.utils import instantiate
 
 import einops
 import torch
