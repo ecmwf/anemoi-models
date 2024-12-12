@@ -16,6 +16,7 @@ import torch
 from anemoi.utils.config import DotDict
 from hydra.errors import InstantiationException
 from hydra.utils import instantiate
+from omegaconf import OmegaConf
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -241,13 +242,13 @@ class AnemoiModelEncProcDec(nn.Module):
 
     def _load_layer_kernels(self, config: DotDict) -> None:
 
-        # If self.layer_kernels entry is missing from the config, use torch.nn by default
-        default_kernels = DotDict()
-        default_kernels["Linear"] = DotDict({"_target_": "torch.nn.Linear", "_partial_": True})
-        default_kernels["LayerNorm"] = DotDict({"_target_": "torch.nn.LayerNorm", "_partial_": True})
-
-        # self.layer_kernels = config.get("model.layer_kernels", default_kernels) #Always uses default kernels...
-        self.layer_kernels = config.model.layer_kernels
+        # If self.layer_kernels entry is missing from the config, use torch.nn kernels
+        default_kernels = {
+            "Linear": {"_target_": "torch.nn.Linear", "_partial_": True},
+            "LayerNorm": {"_target_": "torch.nn.LayerNorm", "_partial_": True},
+        }
+        user_kernel = OmegaConf.select(config, "model.layer_kernels")
+        self.layer_kernels = {**default_kernels, **user_kernel}
 
         # Loop through all kernels in the layer_kernels config entry and try import them
         for kernel in self.layer_kernels:

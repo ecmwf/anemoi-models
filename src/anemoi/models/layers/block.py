@@ -13,6 +13,7 @@ import os
 from abc import ABC
 from abc import abstractmethod
 from typing import Optional
+from hydra.utils import instantiate
 
 import einops
 import torch
@@ -80,8 +81,8 @@ class TransformerProcessorBlock(BaseBlock):
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
-        self.layer_norm1 = layer_kernels["LayerNorm"](num_channels)
-        self.layer_norm2 = layer_kernels["LayerNorm"](num_channels)
+        self.layer_norm_attention = layer_kernels["LayerNorm"](normalized_shape=num_channels)
+        self.layer_norm_mlp = layer_kernels["LayerNorm"](normalized_shape=num_channels)
 
         self.attention = MultiHeadSelfAttention(
             num_heads=num_heads,
@@ -100,11 +101,11 @@ class TransformerProcessorBlock(BaseBlock):
         )
 
     def forward(
-        self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None, **kwargs
+        self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
     ) -> Tensor:
         # Need to be out of place for gradient propagation
-        x = x + self.attention(self.layer_norm1(x), shapes, batch_size, model_comm_group=model_comm_group)
-        x = x + self.mlp(self.layer_norm2(x))
+        x = x + self.attention(self.layer_norm_attention(x), shapes, batch_size, model_comm_group=model_comm_group)
+        x = x + self.mlp(self.layer_norm_mlp(x))
         return x
 
 
@@ -356,6 +357,7 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
 
         self.conv = GraphTransformerConv(out_channels=self.out_channels_conv)
 
+        # Why does the GraphTransformer not have a layer_norm_mlp like the Transformer?
         self.projection = linear(out_channels, out_channels)
 
         try:
@@ -365,17 +367,17 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
             raise RuntimeError from ae
 
         self.node_dst_mlp = nn.Sequential(
-            layerNorm(out_channels),
+            layerNorm(normalized_shape=out_channels),
             linear(out_channels, hidden_dim),
             act_func(),
             linear(hidden_dim, out_channels),
         )
 
-        self.layer_norm1 = layerNorm(in_channels)
+        self.layer_norm_attention = layerNorm(normalized_shape=in_channels)
 
         if self.update_src_nodes:
             self.node_src_mlp = nn.Sequential(
-                layerNorm(out_channels),
+                layerNorm(normlaized_shape=out_channels),
                 linear(out_channels, hidden_dim),
                 act_func(),
                 linear(hidden_dim, out_channels),
@@ -497,7 +499,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             **kwargs,
         )
 
-        self.layer_norm2 = layer_kernels["LayerNorm"](in_channels)
+        self.layer_norm_attention_2 = layer_kernels["LayerNorm"](normalized_shape=in_channels)
 
     def forward(
         self,
@@ -512,9 +514,9 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
         x_skip = x
 
         x = (
-            self.layer_norm1(x[0]),
-            self.layer_norm2(x[1]),
-        )  # Why does this use layer_norm2? And only is a mapper thing?
+            self.layer_norm_attention(x[0]),
+            self.layer_norm_attention_2(x[1]),
+        )  # Why does this use layer_norm_attention_2? And only is a mapper thing?
         x_r = self.lin_self(x[1])
         query = self.lin_query(x[1])
         key = self.lin_key(x[0])
@@ -640,7 +642,7 @@ class GraphTransformerProcessorBlock(GraphTransformerBaseBlock):
     ):
         x_skip = x
 
-        x = self.layer_norm1(x)
+        x = self.layer_norm_attention(x)
         x_r = self.lin_self(x)
         query = self.lin_query(x)
         key = self.lin_key(x)

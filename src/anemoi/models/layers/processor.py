@@ -164,7 +164,7 @@ class TransformerProcessor(BaseProcessor):
                 model_comm_group.size() == 1 or batch_size == 1
             ), "Only batch size of 1 is supported when model is sharded accross GPUs"
 
-        (x,) = self.run_layers((x,), shape_nodes, batch_size, model_comm_group, **kwargs)
+        (x,) = self.run_layers((x,), shape_nodes, batch_size, model_comm_group)
 
         return x
 

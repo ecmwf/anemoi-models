@@ -120,10 +120,9 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         shapes: list,
         batch_size: int,
         model_comm_group: Optional[ProcessGroup] = None,
-        **kwargs,
     ) -> Tensor:
         for i in range(self.num_layers):
-            x = self.blocks[i](x, shapes, batch_size, model_comm_group=model_comm_group, **kwargs)
+            x = self.blocks[i](x, shapes, batch_size, model_comm_group=model_comm_group)
 
         return (x,)  # return tuple for consistency with other processors
 

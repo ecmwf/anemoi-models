@@ -43,7 +43,6 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   # Fix certain dependencies during development
-  "anemoi-training @ git+https://github.com/ecmwf/anemoi-training.git@25abf5e143a29d5931ccb4ac42a5f83c5cd26851",
   "anemoi-utils>=0.1.9",
   "einops>=0.6.1",
   "hydra-core>=1.3",
