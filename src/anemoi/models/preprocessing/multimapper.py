@@ -15,7 +15,9 @@ import torch
 
 from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.preprocessing import BasePreprocessor
-from anemoi.models.preprocessing.mappings import atan2_converter, cos_converter, sin_converter
+from anemoi.models.preprocessing.mappings import atan2_converter
+from anemoi.models.preprocessing.mappings import cos_converter
+from anemoi.models.preprocessing.mappings import sin_converter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,14 +34,16 @@ class Multimapper(BasePreprocessor, ABC):
       "mwd" : ["cos_mwd", "sin_mwd"]
     ```
     """
+
     supported_methods = {
-            method: [f, inv]
-            for method, f, inv in zip(
-                ["cos_sin"],
-                [[cos_converter, sin_converter]],
-                [atan2_converter],
-            )
-        }
+        method: [f, inv]
+        for method, f, inv in zip(
+            ["cos_sin"],
+            [[cos_converter, sin_converter]],
+            [atan2_converter],
+        )
+    }
+
     def __init__(
         self,
         config=None,
@@ -63,19 +67,15 @@ class Multimapper(BasePreprocessor, ABC):
         self._validate_indices()
 
     def _validate_indices(self):
-        assert len(self.index_training_input) == len(
-            self.index_inference_input
-        ) <= len(self.remappers), (
+        assert len(self.index_training_input) == len(self.index_inference_input) <= len(self.remappers), (
             f"Error creating conversion indices {len(self.index_training_input)}, "
-            f"{len(self.index_inference_input)}, {len(self.remappers)}")
-        assert len(self.index_training_output) == len(
-            self.index_inference_output
-        ) <= len(self.remappers), (
+            f"{len(self.index_inference_input)}, {len(self.remappers)}"
+        )
+        assert len(self.index_training_output) == len(self.index_inference_output) <= len(self.remappers), (
             f"Error creating conversion indices {len(self.index_training_output)}, "
-            f"{len(self.index_inference_output)}, {len(self.remappers)}")
-        assert len(
-            set(self.index_training_input + self.indices_keep_training_input)
-        ) == self.num_training_input_vars, (
+            f"{len(self.index_inference_output)}, {len(self.remappers)}"
+        )
+        assert len(set(self.index_training_input + self.indices_keep_training_input)) == self.num_training_input_vars, (
             "Error creating conversion indices: variables remapped in config.data.remapped "
             "that have no remapping function defined. Preprocessed tensors contains empty columns."
         )
@@ -97,14 +97,10 @@ class Multimapper(BasePreprocessor, ABC):
 
         self.num_training_input_vars = len(name_to_index_training_input)
         self.num_inference_input_vars = len(name_to_index_inference_input)
-        self.num_remapped_training_input_vars = len(
-            name_to_index_training_remapped_input)
-        self.num_remapped_inference_input_vars = len(
-            name_to_index_inference_remapped_input)
-        self.num_remapped_training_output_vars = len(
-            name_to_index_training_remapped_output)
-        self.num_remapped_inference_output_vars = len(
-            name_to_index_inference_remapped_output)
+        self.num_remapped_training_input_vars = len(name_to_index_training_remapped_input)
+        self.num_remapped_inference_input_vars = len(name_to_index_inference_remapped_input)
+        self.num_remapped_training_output_vars = len(name_to_index_training_remapped_output)
+        self.num_remapped_inference_output_vars = len(name_to_index_inference_remapped_output)
         self.num_training_output_vars = len(name_to_index_training_output)
         self.num_inference_output_vars = len(name_to_index_inference_output)
         self.indices_keep_training_input = []
@@ -146,15 +142,11 @@ class Multimapper(BasePreprocessor, ABC):
                 continue
 
             if method == "cos_sin":
-                self.index_training_input.append(
-                    name_to_index_training_input[name])
-                self.index_training_output.append(
-                    name_to_index_training_output[name])
-                self.index_inference_input.append(
-                    name_to_index_inference_input[name])
+                self.index_training_input.append(name_to_index_training_input[name])
+                self.index_training_output.append(name_to_index_training_output[name])
+                self.index_inference_input.append(name_to_index_inference_input[name])
                 if name in name_to_index_inference_output:
-                    self.index_inference_output.append(
-                        name_to_index_inference_output[name])
+                    self.index_inference_output.append(name_to_index_inference_output[name])
                 else:
                     # this is a forcing variable. It is not in the inference output.
                     self.index_inference_output.append(None)
@@ -165,42 +157,29 @@ class Multimapper(BasePreprocessor, ABC):
                         f"Trying to remap {name} to {name_dst}, but {name_dst} not a variable. "
                         f"Remap {name} to {name_dst} in config.data.remapped. "
                     )
-                    multiple_training_input.append(
-                        name_to_index_training_remapped_input[name_dst])
-                    multiple_training_output.append(
-                        name_to_index_training_remapped_output[name_dst])
-                    multiple_inference_input.append(
-                        name_to_index_inference_remapped_input[name_dst])
+                    multiple_training_input.append(name_to_index_training_remapped_input[name_dst])
+                    multiple_training_output.append(name_to_index_training_remapped_output[name_dst])
+                    multiple_inference_input.append(name_to_index_inference_remapped_input[name_dst])
                     if name_dst in name_to_index_inference_remapped_output:
-                        multiple_inference_output.append(
-                            name_to_index_inference_remapped_output[name_dst])
+                        multiple_inference_output.append(name_to_index_inference_remapped_output[name_dst])
                     else:
                         # this is a forcing variable. It is not in the inference output.
                         multiple_inference_output.append(None)
 
-                self.index_training_remapped_input.append(
-                    multiple_training_input)
-                self.index_inference_remapped_input.append(
-                    multiple_inference_input)
-                self.index_training_backmapped_output.append(
-                    multiple_training_output)
-                self.index_inference_backmapped_output.append(
-                    multiple_inference_output)
+                self.index_training_remapped_input.append(multiple_training_input)
+                self.index_inference_remapped_input.append(multiple_inference_input)
+                self.index_training_backmapped_output.append(multiple_training_output)
+                self.index_inference_backmapped_output.append(multiple_inference_output)
 
                 self.remappers.append([cos_converter, sin_converter])
                 self.backmappers.append(atan2_converter)
 
-                LOGGER.info(
-                    f"Map {name} to cosine and sine and save result in {self.method_config[method][name]}."
-                )
+                LOGGER.info(f"Map {name} to cosine and sine and save result in {self.method_config[method][name]}.")
 
             else:
-                raise ValueError[
-                    f"Unknown remapping method for {name}: {method}"]
+                raise ValueError[f"Unknown remapping method for {name}: {method}"]
 
-    def transform(self,
-                  x: torch.Tensor,
-                  in_place: bool = True) -> torch.Tensor:
+    def transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
         """Remap and convert the input tensor.
 
         ```
@@ -231,9 +210,7 @@ class Multimapper(BasePreprocessor, ABC):
             )
 
         # create new tensor with target number of columns
-        x_remapped = torch.zeros(x.shape[:-1] + (target_number_columns, ),
-                                 dtype=x.dtype,
-                                 device=x.device)
+        x_remapped = torch.zeros(x.shape[:-1] + (target_number_columns,), dtype=x.dtype, device=x.device)
         if in_place and not self.printed_preprocessor_warning:
             LOGGER.warning(
                 "Remapper (preprocessor) called with in_place=True. This preprocessor cannot be applied in_place as new columns are added to the tensors.",
@@ -241,20 +218,17 @@ class Multimapper(BasePreprocessor, ABC):
             self.printed_preprocessor_warning = True
 
         # copy variables that are not remapped
-        x_remapped[..., :len(indices_keep)] = x[..., indices_keep]
+        x_remapped[..., : len(indices_keep)] = x[..., indices_keep]
 
         # Remap variables
-        for idx_dst, remapper, idx_src in zip(indices_remapped, self.remappers,
-                                              index):
+        for idx_dst, remapper, idx_src in zip(indices_remapped, self.remappers, index):
             if idx_src is not None:
                 for jj, ii in enumerate(idx_dst):
                     x_remapped[..., ii] = remapper[jj](x[..., idx_src])
 
         return x_remapped
 
-    def inverse_transform(self,
-                          x: torch.Tensor,
-                          in_place: bool = True) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor, in_place: bool = True) -> torch.Tensor:
         """Convert and remap the output tensor.
 
         ```
@@ -285,9 +259,7 @@ class Multimapper(BasePreprocessor, ABC):
             )
 
         # create new tensor with target number of columns
-        x_remapped = torch.zeros(x.shape[:-1] + (target_number_columns, ),
-                                 dtype=x.dtype,
-                                 device=x.device)
+        x_remapped = torch.zeros(x.shape[:-1] + (target_number_columns,), dtype=x.dtype, device=x.device)
         if in_place and not self.printed_postprocessor_warning:
             LOGGER.warning(
                 "Remapper (preprocessor) called with in_place=True. This preprocessor cannot be applied in_place as new columns are added to the tensors.",
@@ -295,11 +267,10 @@ class Multimapper(BasePreprocessor, ABC):
             self.printed_postprocessor_warning = True
 
         # copy variables that are not remapped
-        x_remapped[..., indices_keep] = x[..., :len(indices_keep)]
+        x_remapped[..., indices_keep] = x[..., : len(indices_keep)]
 
         # Backmap variables
-        for idx_dst, backmapper, idx_src in zip(index, self.backmappers,
-                                                indices_remapped):
+        for idx_dst, backmapper, idx_src in zip(index, self.backmappers, indices_remapped):
             if idx_dst is not None:
                 x_remapped[..., idx_dst] = backmapper(x[..., idx_src])
 

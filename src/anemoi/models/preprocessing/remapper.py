@@ -17,7 +17,6 @@ from anemoi.models.preprocessing import BasePreprocessor
 from anemoi.models.preprocessing.monomapper import Monomapper
 from anemoi.models.preprocessing.multimapper import Multimapper
 
-
 LOGGER = logging.getLogger(__name__)
 
 

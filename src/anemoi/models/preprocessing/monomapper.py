@@ -16,14 +16,12 @@ import torch
 
 from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.preprocessing import BasePreprocessor
-from anemoi.models.preprocessing.mappings import (
-    boxcox_converter,
-    expm1_converter,
-    inverse_boxcox_converter,
-    log1p_converter,
-    sqrt_converter,
-    square_converter,
-)
+from anemoi.models.preprocessing.mappings import boxcox_converter
+from anemoi.models.preprocessing.mappings import expm1_converter
+from anemoi.models.preprocessing.mappings import inverse_boxcox_converter
+from anemoi.models.preprocessing.mappings import log1p_converter
+from anemoi.models.preprocessing.mappings import sqrt_converter
+from anemoi.models.preprocessing.mappings import square_converter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,9 +60,7 @@ class Monomapper(BasePreprocessor, ABC):
         self._validate_indices()
 
     def _validate_indices(self):
-        assert (
-            len(self.index_training) == len(self.index_inference) <= len(self.remappers)
-        ), (
+        assert len(self.index_training) == len(self.index_inference) <= len(self.remappers), (
             f"Error creating conversion indices {len(self.index_training)}, "
             f"{len(self.index_inference)}, {len(self.remappers)}"
         )
@@ -98,9 +94,7 @@ class Monomapper(BasePreprocessor, ABC):
                     # this is a forcing variable. It is not in the inference output.
                     self.index_inference.append(None)
                 for name_dst in self.method_config[method][name]:
-                    assert (
-                        name_dst in self.data_indices.internal_data.input.name_to_index
-                    ), (
+                    assert name_dst in self.data_indices.internal_data.input.name_to_index, (
                         f"Trying to remap {name} to {name_dst}, but {name_dst} not a variable. "
                         f"Remap {name} to {name_dst} in config.data.remapped. "
                     )
