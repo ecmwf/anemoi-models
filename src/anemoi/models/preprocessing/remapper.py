@@ -24,17 +24,19 @@ class Remapper(BasePreprocessor, ABC):
     """Remap and convert variables for single variables."""
 
     def __new__(
-        self,
+        cls,
         config=None,
         data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
     ) -> None:
-        super().__init__(config, data_indices, statistics)
+        _, _, method_config = cls._process_config(config)
         monomappings = Monomapper.supported_methods
         multimappings = Multimapper.supported_methods
-        if self.method in monomappings:
+        if all([method in monomappings for method in method_config]):
             return Monomapper(config, data_indices, statistics)
-        elif self.add_module in multimappings:
+        elif all([method in multimappings for method in method_config]):
             return Multimapper(config, data_indices, statistics)
+        elif not (any([method in monomappings for method in method_config]) or any([method in multimappings for method in method_config])):
+            raise ValueError("No valid remapping method found.")
         else:
-            raise ValueError(f"Unknown remapping method: {self.method}")
+            raise NotImplementedError(f"Not implemented: method_config contains a mix of monomapper and multimapper methods: {list(method_config.keys())}")
