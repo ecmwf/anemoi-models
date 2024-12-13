@@ -32,13 +32,13 @@ class Remapper(BasePreprocessor, ABC):
         _, _, method_config = cls._process_config(config)
         monomappings = Monomapper.supported_methods
         multimappings = Multimapper.supported_methods
-        if all([method in monomappings for method in method_config]):
+        if all(method in monomappings for method in method_config):
             return Monomapper(config, data_indices, statistics)
-        elif all([method in multimappings for method in method_config]):
+        elif all(method in multimappings for method in method_config):
             return Multimapper(config, data_indices, statistics)
         elif not (
-            any([method in monomappings for method in method_config])
-            or any([method in multimappings for method in method_config])
+            any(method in monomappings for method in method_config)
+            or any(method in multimappings for method in method_config)
         ):
             raise ValueError("No valid remapping method found.")
         else:
