@@ -45,7 +45,7 @@ class TestTransformerProcessorBlock:
             activation,
             window_size,
             dropout_p=dropout_p,
-            attention_implementation="scaled dot product attention",
+            attention_implementation="scaled_dot_product_attention",
             softcap=softcap,
         )
         assert isinstance(block, TransformerProcessorBlock)
@@ -87,7 +87,7 @@ class TestTransformerProcessorBlock:
             activation,
             window_size,
             dropout_p=dropout_p,
-            attention_implementation="scaled dot product attention",
+            attention_implementation="scaled_dot_product_attention",
             softcap=softcap,
         )
 

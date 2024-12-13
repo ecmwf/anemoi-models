@@ -24,7 +24,7 @@ class TestGraphTransformerProcessorChunk:
         activation: str = "GELU"
         window_size: int = 13
         dropout_p: float = 0.1
-        attention_implementation = "scaled dot product attention"
+        attention_implementation = "scaled_dot_product_attention"
 
         # num_heads must be evenly divisible by num_channels for MHSA
         return (

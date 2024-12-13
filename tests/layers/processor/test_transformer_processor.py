@@ -26,7 +26,7 @@ def transformer_processor_init():
     mlp_hidden_ratio = 4
     dropout_p = 0.1
     softcap = 0.5
-    attention_implementation = "scaled dot product attention"
+    attention_implementation = "scaled_dot_product_attention"
     return (
         num_layers,
         window_size,
