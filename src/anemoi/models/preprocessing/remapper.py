@@ -12,18 +12,11 @@ import logging
 from abc import ABC
 from typing import Optional
 
-import torch
-
 from anemoi.models.data_indices.collection import IndexCollection
 from anemoi.models.preprocessing import BasePreprocessor
-from anemoi.models.preprocessing.mappings import (
-    log1p_converter,
-    boxcox_converter,
-    sqrt_converter,
-    expm1_converter,
-    square_converter,
-    inverse_boxcox_converter,
-)
+from anemoi.models.preprocessing.monomapper import Monomapper
+from anemoi.models.preprocessing.multimapper import Multimapper
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,43 +24,18 @@ LOGGER = logging.getLogger(__name__)
 class Remapper(BasePreprocessor, ABC):
     """Remap and convert variables for single variables."""
 
-    def __init__(
+    def __new__(
         self,
         config=None,
         data_indices: Optional[IndexCollection] = None,
         statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
-        self.remappers = []
-        self.backmappers = []
-        self.supported_methods = {
-            method: [f, inv]
-            for method, f, inv in zip(
-                ["log1p", "sqrt", "boxcox"],
-                [log1p_converter, sqrt_converter, boxcox_converter],
-                [expm1_converter, square_converter, inverse_boxcox_converter],
-            )
-        }
-        for name, method in self.methods.items():
-            method = method or self.default
-            if method == "none":
-                continue
-            elif method in self.supported_methods:
-                self.remappers.append(self.supported_methods[method][0])
-                self.backmappers.append(self.supported_methods[method][1])
-            else:
-                raise ValueError(f"Unknown remapping method for {name}: {method}")
-
-    def transform(self, x, in_place: bool = True) -> torch.Tensor:
-        for name, method in self.methods.items():
-            idx = self.data_indices.data.input.name_to_index[name]
-            remapper = self.supported_methods[method][0]
-            x[..., idx] = remapper(x[..., idx])
-        return x
-
-    def inverse_transform(self, x, in_place: bool = True) -> torch.Tensor:
-        for name, method in self.methods.items():
-            idx = self.data_indices.data.input.name_to_index[name]
-            backmapper = self.supported_methods[method][1]
-            x[..., idx] = backmapper(x[..., idx])
-        return x
+        monomappings = Monomapper.supported_methods
+        multimappings = Multimapper.supported_methods
+        if self.method in monomappings:
+            return Monomapper(config, data_indices, statistics)
+        elif self.add_module in multimappings:
+            return Multimapper(config, data_indices, statistics)
+        else:
+            raise ValueError(f"Unknown remapping method: {self.method}")

@@ -32,7 +32,14 @@ class Multimapper(BasePreprocessor, ABC):
       "mwd" : ["cos_mwd", "sin_mwd"]
     ```
     """
-
+    supported_methods = {
+            method: [f, inv]
+            for method, f, inv in zip(
+                ["cos_sin"],
+                [[cos_converter, sin_converter]],
+                [atan2_converter],
+            )
+        }
     def __init__(
         self,
         config=None,
