@@ -275,7 +275,7 @@ class Multimapper(BasePreprocessor, ABC):
                 x_remapped[..., idx_dst] = backmapper(x[..., idx_src])
 
         return x_remapped
-    
+
     def transform_loss_mask(self, mask: torch.Tensor) -> torch.Tensor:
         """Remap the loss mask.
 

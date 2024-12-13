@@ -36,7 +36,12 @@ class Remapper(BasePreprocessor, ABC):
             return Monomapper(config, data_indices, statistics)
         elif all([method in multimappings for method in method_config]):
             return Multimapper(config, data_indices, statistics)
-        elif not (any([method in monomappings for method in method_config]) or any([method in multimappings for method in method_config])):
+        elif not (
+            any([method in monomappings for method in method_config])
+            or any([method in multimappings for method in method_config])
+        ):
             raise ValueError("No valid remapping method found.")
         else:
-            raise NotImplementedError(f"Not implemented: method_config contains a mix of monomapper and multimapper methods: {list(method_config.keys())}")
+            raise NotImplementedError(
+                f"Not implemented: method_config contains a mix of monomapper and multimapper methods: {list(method_config.keys())}"
+            )
