@@ -28,7 +28,7 @@ Keep it human-readable, your future self will thank you!
 - New `NamedNodesAttributes` class to handle node attributes in a more flexible way [#64](https://github.com/ecmwf/anemoi-models/pull/64)
 - Contributors file [#69](https://github.com/ecmwf/anemoi-models/pull/69)
 - Add remappers, e.g. link functions to apply during training to facilitate learning of variables with a difficult distribution [#88]
-  
+
 ### Changed
 - Bugfixes for CI
 - Change Changelog CI to run after successful publish
