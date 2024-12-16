@@ -31,7 +31,7 @@ class LatCosSinLon(BasePositionalEncoding):
 
     def positional_encoding(self, latlons_hidden: Tensor) -> Tensor:
         """Output lat, cos(lon), sin(lon) for grid points."""
-        lat_coslon_sinlon_hidden = torch.cat(  # lat, cos(lon), sin(lon) for hidden grid points
+        lat_coslon_sinlon_hidden = torch.cat(
             (
                 latlons_hidden[:, 0].unsqueeze(-1),
                 torch.cos(latlons_hidden[:, 1].unsqueeze(-1)),
