@@ -35,6 +35,7 @@ class AnemoiModelEncProcDec(nn.Module):
         *,
         model_config: DotDict,
         data_indices: dict,
+        statistics: dict,
         graph_data: HeteroData,
     ) -> None:
         """Initializes the graph neural network.
@@ -57,6 +58,7 @@ class AnemoiModelEncProcDec(nn.Module):
         self._calculate_shapes_and_indices(data_indices)
         self._assert_matching_indices(data_indices)
         self.data_indices = data_indices
+        self.statistics = statistics
 
         self.multi_step = model_config.training.multistep_input
         self.num_channels = model_config.model.num_channels
