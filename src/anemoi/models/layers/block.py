@@ -68,7 +68,7 @@ class TransformerProcessorBlock(BaseBlock):
         num_heads: int,
         activation: str,
         window_size: int,
-        grid_lat_coslon_sinlon: Tensor = None,
+        grid_lat_coslon_sinlon: Optional[Tensor] = None,
         dropout_p: float = 0.0,
     ):
         super().__init__()
@@ -84,7 +84,7 @@ class TransformerProcessorBlock(BaseBlock):
         self.register_buffer("grid_lat_coslon_sinlon", grid_lat_coslon_sinlon)
         if self.grid_lat_coslon_sinlon is not None:
             self.pos_embedder = nn.Linear(
-                3, num_channels
+                self.grid_lat_coslon_sinlon.shape[-1], num_channels
             )  # assuming that we have 3 position features, lat and cos / sin of lon
 
         self.attention = MultiHeadSelfAttention(

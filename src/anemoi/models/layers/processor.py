@@ -40,7 +40,7 @@ class BaseProcessor(nn.Module, ABC):
         num_chunks: int = 2,
         activation: str = "GELU",
         cpu_offload: bool = False,
-        grid_lat_coslon_sinlon: Tensor = None,
+        grid_lat_coslon_sinlon: Optional[Tensor] = None,
         **kwargs,
     ) -> None:
         """Initialize BaseProcessor."""
@@ -96,7 +96,7 @@ class TransformerProcessor(BaseProcessor):
         num_chunks: int = 2,
         activation: str = "GELU",
         cpu_offload: bool = False,
-        grid_lat_coslon_sinlon: Tensor = None,
+        grid_lat_coslon_sinlon: Optional[Tensor] = None,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,

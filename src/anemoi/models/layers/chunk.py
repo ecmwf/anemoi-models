@@ -74,7 +74,7 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
-        grid_lat_coslon_sinlon: Tensor = None,
+        grid_lat_coslon_sinlon: Optional[Tensor] = None,
         dropout_p: float = 0.0,
     ) -> None:
         """Initialize TransformerProcessor.
