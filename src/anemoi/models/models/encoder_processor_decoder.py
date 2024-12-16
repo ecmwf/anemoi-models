@@ -100,7 +100,12 @@ class AnemoiModelEncProcDec(nn.Module):
         # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
         self.boundings = nn.ModuleList(
             [
-                instantiate(cfg, name_to_index=self.data_indices.internal_model.output.name_to_index)
+                instantiate(
+                    cfg,
+                    name_to_index=self.data_indices.internal_model.output.name_to_index,
+                    statistics=self.statistics,
+                    name_to_index_stats=self.data_indices.data.input.name_to_index,
+                )
                 for cfg in getattr(model_config.model, "bounding", [])
             ]
         )
