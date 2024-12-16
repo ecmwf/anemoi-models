@@ -97,7 +97,7 @@ class TransformerProcessor(BaseProcessor):
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
-        attention_implementation: str = "Flex Attention",
+        attention_implementation: str = "flash_attention",
         softcap: float = 0.0,
         use_alibi_slopes: bool = None,
         **kwargs,
@@ -122,7 +122,7 @@ class TransformerProcessor(BaseProcessor):
             Dropout probability used for multi-head self attention, default 0.0
         attention_implementation: str, optional
             A predefined string which selects which underlying attention
-            implementation, by default "flex attention"
+            implementation, by default "flash_attention"
         softcap : float, optional
             Anything > 0 activates softcapping flash attention, by default None
         use_alibi_slopes : bool, optional

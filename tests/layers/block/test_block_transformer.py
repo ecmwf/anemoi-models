@@ -39,7 +39,14 @@ class TestTransformerProcessorBlock:
     def test_init(self, factor_attention_heads, hidden_dim, num_heads, activation, window_size, dropout_p, softcap):
         num_channels = num_heads * factor_attention_heads
         block = TransformerProcessorBlock(
-            num_channels, hidden_dim, num_heads, activation, window_size, dropout_p=dropout_p, softcap=softcap
+            num_channels,
+            hidden_dim,
+            num_heads,
+            activation,
+            window_size,
+            dropout_p=dropout_p,
+            attention_implementation="scaled_dot_product_attention",
+            softcap=softcap,
         )
         assert isinstance(block, TransformerProcessorBlock)
 
@@ -74,7 +81,14 @@ class TestTransformerProcessorBlock:
     ):
         num_channels = num_heads * factor_attention_heads
         block = TransformerProcessorBlock(
-            num_channels, hidden_dim, num_heads, activation, window_size, dropout_p=dropout_p, softcap=softcap
+            num_channels,
+            hidden_dim,
+            num_heads,
+            activation,
+            window_size,
+            dropout_p=dropout_p,
+            attention_implementation="scaled_dot_product_attention",
+            softcap=softcap,
         )
 
         x = torch.randn((batch_size, num_channels))  # .to(torch.float16, non_blocking=True)
