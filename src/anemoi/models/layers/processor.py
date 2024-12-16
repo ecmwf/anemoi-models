@@ -40,7 +40,7 @@ class BaseProcessor(nn.Module, ABC):
         num_chunks: int = 2,
         activation: str = "GELU",
         cpu_offload: bool = False,
-        grid_lat_coslon_sinlon: Optional[Tensor] = None,
+        positional_encoding_hidden: Optional[Tensor] = None,
         **kwargs,
     ) -> None:
         """Initialize BaseProcessor."""
@@ -50,7 +50,7 @@ class BaseProcessor(nn.Module, ABC):
         self.num_chunks = num_chunks
         self.num_channels = num_channels
         self.chunk_size = num_layers // num_chunks
-        self.grid_lat_coslon_sinlon = grid_lat_coslon_sinlon
+        self.positional_encoding_hidden = positional_encoding_hidden
 
         assert (
             num_layers % num_chunks == 0
@@ -96,7 +96,7 @@ class TransformerProcessor(BaseProcessor):
         num_chunks: int = 2,
         activation: str = "GELU",
         cpu_offload: bool = False,
-        grid_lat_coslon_sinlon: Optional[Tensor] = None,
+        positional_encoding_hidden: Optional[Tensor] = None,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         dropout_p: float = 0.1,
@@ -128,7 +128,7 @@ class TransformerProcessor(BaseProcessor):
             num_chunks=num_chunks,
             activation=activation,
             cpu_offload=cpu_offload,
-            grid_lat_coslon_sinlon=grid_lat_coslon_sinlon,
+            positional_encoding_hidden=positional_encoding_hidden,
             num_heads=num_heads,
             mlp_hidden_ratio=mlp_hidden_ratio,
         )
@@ -141,7 +141,7 @@ class TransformerProcessor(BaseProcessor):
             num_layers=self.chunk_size,
             window_size=window_size,
             activation=activation,
-            grid_lat_coslon_sinlon=grid_lat_coslon_sinlon,
+            positional_encoding_hidden=positional_encoding_hidden,
             dropout_p=dropout_p,
         )
 

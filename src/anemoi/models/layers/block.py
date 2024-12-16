@@ -68,7 +68,7 @@ class TransformerProcessorBlock(BaseBlock):
         num_heads: int,
         activation: str,
         window_size: int,
-        grid_lat_coslon_sinlon: Optional[Tensor] = None,
+        positional_encoding_hidden: Optional[Tensor] = None,
         dropout_p: float = 0.0,
     ):
         super().__init__()
@@ -81,10 +81,10 @@ class TransformerProcessorBlock(BaseBlock):
 
         self.layer_norm1 = nn.LayerNorm(num_channels)
 
-        self.register_buffer("grid_lat_coslon_sinlon", grid_lat_coslon_sinlon)
-        if self.grid_lat_coslon_sinlon is not None:
+        self.register_buffer("positional_encoding_hidden", positional_encoding_hidden)
+        if self.positional_encoding_hidden is not None:
             self.pos_embedder = nn.Linear(
-                self.grid_lat_coslon_sinlon.shape[-1], num_channels
+                self.positional_encoding_hidden.shape[-1], num_channels
             )  # assuming that we have 3 position features, lat and cos / sin of lon
 
         self.attention = MultiHeadSelfAttention(
@@ -106,8 +106,8 @@ class TransformerProcessorBlock(BaseBlock):
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
     ) -> Tensor:
-        if self.grid_lat_coslon_sinlon is not None:
-            pos_embedding = self.pos_embedder(self.grid_lat_coslon_sinlon)
+        if self.positional_encoding_hidden is not None:
+            pos_embedding = self.pos_embedder(self.positional_encoding_hidden)
             pos_embedding = pos_embedding.repeat(batch_size, 1)
             x = x + pos_embedding
 
