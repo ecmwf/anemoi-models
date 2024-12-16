@@ -93,11 +93,6 @@ class Monomapper(BasePreprocessor, ABC):
                 else:
                     # this is a forcing variable. It is not in the inference output.
                     self.index_inference.append(None)
-                for name_dst in self.method_config[method][name]:
-                    assert name_dst in self.data_indices.internal_data.input.name_to_index, (
-                        f"Trying to remap {name} to {name_dst}, but {name_dst} not a variable. "
-                        f"Remap {name} to {name_dst} in config.data.remapped. "
-                    )
             else:
                 raise ValueError[f"Unknown remapping method for {name}: {method}"]
 

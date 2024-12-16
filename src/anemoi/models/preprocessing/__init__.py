@@ -73,6 +73,11 @@ class BasePreprocessor(nn.Module):
             LOGGER.warning(
                 f"{cls.__name__}: Using default method {default} for all variables not specified in the config.",
             )
+        for m in method_config:
+            if isinstance(method_config[m], str):
+                method_config[m] = {method_config[m]: f"{m}_{method_config[m]}"}
+            elif isinstance(method_config[m], list):
+                method_config[m] = {method: f"{m}_{method}" for method in method_config[m]}
 
         return default, remap, method_config
 
