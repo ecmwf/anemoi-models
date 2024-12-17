@@ -9,9 +9,11 @@
 
 import torch
 
+
 def noop(x):
     """No operation."""
     return x
+
 
 def cos_converter(x):
     """Convert angle in degree to cos."""

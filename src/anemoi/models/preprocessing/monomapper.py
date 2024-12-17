@@ -20,9 +20,9 @@ from anemoi.models.preprocessing.mappings import boxcox_converter
 from anemoi.models.preprocessing.mappings import expm1_converter
 from anemoi.models.preprocessing.mappings import inverse_boxcox_converter
 from anemoi.models.preprocessing.mappings import log1p_converter
+from anemoi.models.preprocessing.mappings import noop
 from anemoi.models.preprocessing.mappings import sqrt_converter
 from anemoi.models.preprocessing.mappings import square_converter
-from anemoi.models.preprocessing.mappings import noop
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,9 +50,7 @@ class Monomapper(BasePreprocessor, ABC):
         self._validate_indices()
 
     def _validate_indices(self):
-        assert (
-            len(self.index_training) == len(self.index_inference) == len(self.remappers)
-        ), (
+        assert len(self.index_training) == len(self.index_inference) == len(self.remappers), (
             f"Error creating conversion indices {len(self.index_training)}, "
             f"{len(self.index_inference)}, {len(self.remappers)}"
         )

@@ -147,7 +147,8 @@ def test_remap_log1p(input_remapper_1d) -> None:
         [
             [1.0, 2.0, 3.0, np.sqrt(4.0), np.log1p(150.0), 5.0],
             [6.0, 7.0, 8.0, np.sqrt(9.0), np.log1p(201.0), 10.0],
-    ])
+        ]
+    )
     assert torch.allclose(input_remapper_1d.transform(x), expected_output)
 
 
