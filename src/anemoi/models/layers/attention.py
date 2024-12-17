@@ -69,6 +69,9 @@ class MultiHeadSelfAttention(nn.Module):
         if shard_strategy not in ["shard_heads", "shard_sequence"]:
             raise ValueError(f"Invalid shard_strategy: {shard_strategy}")
 
+        if shard_strategy == "shard_sequence":  # remove this after PR #47 is merged (sliding window support)
+            assert _FLASH_ATTENTION_AVAILABLE, "Flash attention is required for shard_sequence strategy"
+
         self.projection = nn.Linear(embed_dim, embed_dim, bias=True)
 
     def forward(
@@ -80,7 +83,6 @@ class MultiHeadSelfAttention(nn.Module):
             ), "Only batch size of 1 is supported when model is sharded accross GPUs"
 
         if self.shard_strategy == "shard_sequence":
-            assert _FLASH_ATTENTION_AVAILABLE, "Flash attention is required for shard_sequence strategy"
             assert (
                 shapes[-1][0] // 2 >= self.window_size[0]
             ), "Sharded sequence length must be at least twice the window size"
@@ -97,10 +99,9 @@ class MultiHeadSelfAttention(nn.Module):
                 x_bgc, halo_size=self.window_size[0], mgroup=model_comm_group
             )
 
-            # compute q, k, v (on local sequence shards)
+            # compute q, k, v (on local sequence shards with halos)
             query, key, value = self.lin_qkv(x_plus_halos).chunk(3, -1)
 
-            # further unpack feature dimension
             query, key, value = (
                 einops.rearrange(
                     t,

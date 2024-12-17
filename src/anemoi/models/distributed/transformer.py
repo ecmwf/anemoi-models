@@ -9,7 +9,6 @@
 
 
 import logging
-import os
 from typing import Optional
 
 import torch
@@ -87,10 +86,9 @@ def _seqalltoall(input_: Tensor, shapes: list, group: Optional[ProcessGroup] = N
 
 
 def _halo_exchange(input_: Tensor, halo_size: int, mgroup: ProcessGroup, bwd: bool = False) -> Tensor:
-    """Exchange halo regions between ranks.
+    """Exchange halo regions between neighboring ranks.
 
-    Send halo regions to the left and right and receive from the right and left and extend the input tensor.
-    Expected format is (batch_size, sequence_length, channels).
+    Expected format is (batch_size, halo_size + sequence_length + halo_size, channels).
 
     Parameters
     ----------
@@ -106,7 +104,7 @@ def _halo_exchange(input_: Tensor, halo_size: int, mgroup: ProcessGroup, bwd: bo
     Returns
     -------
     Tensor
-        Extended input tensor
+        Tensor with halo regions from neighboring ranks
     """
     end = input_.shape[-2]
 
@@ -115,90 +113,40 @@ def _halo_exchange(input_: Tensor, halo_size: int, mgroup: ProcessGroup, bwd: bo
     left_send_slice = slice(halo_size, 2 * halo_size)
     right_send_slice = slice(end - 2 * halo_size, end - halo_size)
 
-    if bwd:  # reverse halo exchange direction
+    if bwd:  # reverse halo exchange direction for gradient accumulation
         left_halo_slice, left_send_slice = left_send_slice, left_halo_slice
         right_halo_slice, right_send_slice = right_send_slice, right_halo_slice
 
     left_send = input_[:, left_send_slice, :]
     right_send = input_[:, right_send_slice, :]
-    left_halo = torch.empty_like(right_send, device=input_.device)
-    right_halo = torch.empty_like(left_send, device=input_.device)
 
-    global_rank = dist.get_rank()
-    local_rank = dist.get_rank(mgroup)
+    # setup neighbor ranks and tensor lists for all_to_all communication
+    group_rank = dist.get_rank(mgroup)
     group_size = dist.get_world_size(mgroup)
-    left_rank = global_rank - 1 if local_rank > 0 else None
-    right_rank = global_rank + 1 if local_rank < group_size - 1 else None
+    left_rank = group_rank - 1 if group_rank > 0 else None
+    right_rank = group_rank + 1 if group_rank < group_size - 1 else None
 
-    match os.environ.get("HALO_COMM", "SENDRECV"):
-        case "SENDRECV":
-            if local_rank % 2 != 0:
-                if left_rank is not None:
-                    dist.send(left_send, left_rank, group=mgroup)
-                    dist.recv(left_halo, left_rank, group=mgroup)
-                if right_rank is not None:
-                    dist.send(right_send, right_rank, group=mgroup)
-                    dist.recv(right_halo, right_rank, group=mgroup)
-            else:
-                if right_rank is not None:
-                    dist.recv(right_halo, right_rank, group=mgroup)
-                    dist.send(right_send, right_rank, group=mgroup)
-                if left_rank is not None:
-                    dist.recv(left_halo, left_rank, group=mgroup)
-                    dist.send(left_send, left_rank, group=mgroup)
-        case "ISENDRECV":
-            reqs = []
-            if local_rank % 2 != 0:
-                if left_rank is not None:
-                    reqs.append(dist.isend(left_send, left_rank, group=mgroup))
-                    reqs.append(dist.irecv(left_halo, left_rank, group=mgroup))
-                if right_rank is not None:
-                    reqs.append(dist.isend(right_send, right_rank, group=mgroup))
-                    reqs.append(dist.irecv(right_halo, right_rank, group=mgroup))
-            else:
-                if right_rank is not None:
-                    reqs.append(dist.irecv(right_halo, right_rank, group=mgroup))
-                    reqs.append(dist.isend(right_send, right_rank, group=mgroup))
-                if left_rank is not None:
-                    reqs.append(dist.irecv(left_halo, left_rank, group=mgroup))
-                    reqs.append(dist.isend(left_send, left_rank, group=mgroup))
-            for req in reqs:
-                req.wait()
-        case "ALLGATHER":
-            combined_send = torch.cat([left_send, right_send], dim=1).contiguous()
-            halos = [torch.empty_like(combined_send) for _ in range(group_size)]
-            dist.all_gather(halos, combined_send, group=mgroup)
-            left_halo = halos[local_rank - 1][:, halo_size:, :] if local_rank > 0 else None
-            right_halo = halos[local_rank + 1][:, :halo_size, :] if local_rank < group_size - 1 else None
-        case "ALLTOALL":
-            input_list = [torch.empty(1, device=input_.device) for _ in range(group_size)]
-            if left_rank is not None:
-                input_list[left_rank] = left_send
-            if right_rank is not None:
-                input_list[right_rank] = right_send
-            output_list = [torch.empty_like(input_i, device=input_.device) for input_i in input_list]
-            dist.all_to_all(output_list, input_list, group=mgroup)
+    input_list = [torch.empty(0, device=input_.device) for _ in range(group_size)]
+    if left_rank is not None:
+        input_list[left_rank] = left_send
+    if right_rank is not None:
+        input_list[right_rank] = right_send
+    output_list = [torch.empty_like(input_i, device=input_.device) for input_i in input_list]
 
-            if left_rank is not None:
-                left_halo = output_list[left_rank]
-            if right_rank is not None:
-                right_halo = output_list[right_rank]
-        case _:
-            raise ValueError(f"Unknown halo communication strategy {os.environ['HALO_COMM']}")
+    dist.all_to_all(output_list, input_list, group=mgroup)
 
-    if bwd:
-        # remove gradient contribution from send regions and add halo regions
+    if bwd:  # add gradient contributions to halo regions and zero out send regions
         if left_rank is not None:
             input_[:, left_send_slice, :] = 0
-            input_[:, left_halo_slice, :] += left_halo
+            input_[:, left_halo_slice, :] += output_list[left_rank]
         if right_rank is not None:
             input_[:, right_send_slice, :] = 0
-            input_[:, right_halo_slice, :] += right_halo
-    else:
+            input_[:, right_halo_slice, :] += output_list[right_rank]
+    else:  # add halo regions to input tensor
         if left_rank is not None:
-            input_[:, left_halo_slice, :] = left_halo
+            input_[:, left_halo_slice, :] = output_list[left_rank]
         if right_rank is not None:
-            input_[:, right_halo_slice, :] = right_halo
+            input_[:, right_halo_slice, :] = output_list[right_rank]
 
     return input_
 
@@ -251,7 +199,7 @@ def shard_sequence(input_: Tensor, shapes: list, mgroup: ProcessGroup) -> Tensor
     return _SplitSequenceParallelSection.apply(input_, shapes, mgroup)
 
 
-def halo_exchange(x: Tensor, halo_size: int, mgroup: ProcessGroup) -> None:
+def halo_exchange(x: Tensor, halo_size: int, mgroup: ProcessGroup) -> Tensor:
     """Exchange halo regions between ranks,
 
     Parameters
@@ -262,10 +210,18 @@ def halo_exchange(x: Tensor, halo_size: int, mgroup: ProcessGroup) -> None:
         Halo size (left, right)
     mgroup : ProcessGroup
         Model communication group
+
+    Returns
+    -------
+    Tensor, int, int
+        Tensor appended with halo regions from neighboring ranks, left halo size, right halo size
     """
+    if mgroup is None or dist.get_world_size(mgroup) == 1:
+        return x, 0, 0
+
     # pad tensor with halo regions
-    halo_size_left = halo_size if (mgroup and dist.get_rank(mgroup) != 0) else 0
-    halo_size_right = halo_size if (mgroup and dist.get_rank(mgroup) != dist.get_world_size(mgroup) - 1) else 0
+    halo_size_left = halo_size if dist.get_rank(mgroup) != 0 else 0
+    halo_size_right = halo_size if dist.get_rank(mgroup) != dist.get_world_size(mgroup) - 1 else 0
     x_pad = torch.nn.functional.pad(x, pad=(0, 0, halo_size_left, halo_size_right), mode="constant", value=0)
 
     out = _HaloExchange.apply(x_pad, halo_size, mgroup)
@@ -333,7 +289,6 @@ class _HaloExchange(torch.autograd.Function):
     def backward(ctx, grad_output):
         if ctx.mgroup:
             return (
-                # not sure if this works yet, need to test
                 _halo_exchange(grad_output, ctx.halo_size, ctx.mgroup, bwd=True),
                 None,
                 None,
