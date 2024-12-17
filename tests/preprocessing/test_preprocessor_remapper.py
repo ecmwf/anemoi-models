@@ -51,6 +51,7 @@ def input_remapper_1d():
             "data": {
                 "remapper": {
                     "log1p": "d",
+                    "sqrt": "q",
                 },
                 "forcing": ["z", "q"],
                 "diagnostic": ["other"],
