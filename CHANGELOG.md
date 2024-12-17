@@ -25,6 +25,7 @@ Keep it human-readable, your future self will thank you!
 - Mask NaN values in training loss function [#271](https://github.com/ecmwf-lab/aifs-mono/issues/271)
 - New `NamedNodesAttributes` class to handle node attributes in a more flexible way [#64](https://github.com/ecmwf/anemoi-models/pull/64)
 - Contributors file [#69](https://github.com/ecmwf/anemoi-models/pull/69)
+- Add sequence sharding strategy for TransformerProcessor [#90](https://github.com/ecmwf/anemoi-models/pull/90)
 
 ### Changed
 - Bugfixes for CI
