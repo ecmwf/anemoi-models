@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import numpy as np
 import pytest
 import torch
 from anemoi.utils.config import DotDict
@@ -14,9 +15,9 @@ from hydra.utils import instantiate
 
 from anemoi.models.layers.bounding import FractionBounding
 from anemoi.models.layers.bounding import HardtanhBounding
-from anemoi.models.layers.bounding import ReluBounding
 from anemoi.models.layers.bounding import NormalizedReluBounding
-import numpy as np
+from anemoi.models.layers.bounding import ReluBounding
+
 
 @pytest.fixture
 def config():
@@ -32,6 +33,7 @@ def name_to_index():
 def input_tensor():
     return torch.tensor([[-1.0, 2.0, 3.0], [4.0, -5.0, 6.0], [0.5, 0.5, 0.5]])
 
+
 @pytest.fixture
 def statistics():
     statistics = {
@@ -42,14 +44,22 @@ def statistics():
     }
     return statistics
 
+
 def test_relu_bounding(config, name_to_index, input_tensor):
     bounding = ReluBounding(variables=config.variables, name_to_index=name_to_index)
     output = bounding(input_tensor.clone())
     expected_output = torch.tensor([[0.0, 2.0, 3.0], [4.0, 0.0, 6.0], [0.5, 0.5, 0.5]])
     assert torch.equal(output, expected_output)
 
+
 def test_normalized_relu_bounding(config, name_to_index, input_tensor, statistics):
-    bounding = NormalizedReluBounding(variables=config.variables, name_to_index=name_to_index, min_val= [2.0, 2.0], normalizer= ["mean-std","min-max"], statistics= statistics)
+    bounding = NormalizedReluBounding(
+        variables=config.variables,
+        name_to_index=name_to_index,
+        min_val=[2.0, 2.0],
+        normalizer=["mean-std", "min-max"],
+        statistics=statistics,
+    )
     output = bounding(input_tensor.clone())
     breakpoint()
     expected_output = torch.tensor([[2.0, 2.0, 3.0], [4.0, 0.0, 6.0], [0.5, 0.5, 0.5]])
