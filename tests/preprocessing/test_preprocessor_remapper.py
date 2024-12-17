@@ -150,7 +150,27 @@ def test_remap_log1p(input_remapper_1d) -> None:
         ]
     )
     assert torch.allclose(input_remapper_1d.transform(x), expected_output)
+    assert torch.allclose(input_remapper_1d.transform(x, in_place=False), expected_output)
+    # inference mode (without prognostic variables)
+    assert torch.allclose(
+        input_remapper_1d.transform(x[..., input_remapper_1d.data_indices.data.todict()['input']['full']]), 
+        expected_output[..., input_remapper_1d.data_indices.data.todict()['input']['full']]
+    )
 
+def test_monomap_inverse_transform(input_remapper_1d) -> None:
+    expected_output = torch.Tensor([[1.0, 2.0, 3.0, 4.0, 150.0, 5.0], [6.0, 7.0, 8.0, 9.0, 201.0, 10.0]])
+    x = torch.Tensor(
+        [
+            [1.0, 2.0, 3.0, np.sqrt(4.0), np.log1p(150.0), 5.0],
+            [6.0, 7.0, 8.0, np.sqrt(9.0), np.log1p(201.0), 10.0],
+        ]
+    )
+    assert torch.allclose(input_remapper_1d.inverse_transform(x, in_place=False), expected_output)
+    # inference mode (without prognostic variables)
+    assert torch.allclose(
+        input_remapper_1d.inverse_transform(x[..., input_remapper_1d.data_indices.data.todict()['output']['full']]), 
+        expected_output[..., input_remapper_1d.data_indices.data.todict()['output']['full']]
+    )
 
 def test_unsupported_remapper():
     config = DictConfig(
