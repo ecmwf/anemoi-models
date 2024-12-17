@@ -97,7 +97,8 @@ class Monomapper(BasePreprocessor, ABC):
                 raise ValueError[f"Unknown remapping method for {name}: {method}"]
 
     def transform(self, x, in_place: bool = True) -> torch.Tensor:
-        for method in self.methods.values():
+        if not in_place:
+            x = x.clone()   
             remapper = self.supported_methods[method][0]
             if x.shape[-1] == self.num_training_vars:
                 idx = self.index_training
