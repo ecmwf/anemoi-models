@@ -50,9 +50,15 @@ class Monomapper(BasePreprocessor, ABC):
         self._validate_indices()
 
     def _validate_indices(self):
-        assert len(self.index_training) == len(self.index_inference) == len(self.remappers), (
-            f"Error creating conversion indices {len(self.index_training)}, "
-            f"{len(self.index_inference)}, {len(self.remappers)}"
+        assert (
+            len(self.index_training_input)
+            == len(self.index_inference_input)
+            == len(self.index_inference_output)
+            == len(self.index_training_out)
+            == len(self.remappers)
+        ), (
+            f"Error creating conversion indices {len(self.index_training_input)}, "
+            f"{len(self.index_inference_input)}, {len(self.index_training_input)}, {len(self.index_training_out)}, {len(self.remappers)}"
         )
 
     def _create_remapping_indices(
@@ -61,46 +67,65 @@ class Monomapper(BasePreprocessor, ABC):
     ):
         """Create the parameter indices for remapping."""
         # list for training and inference mode as position of parameters can change
-        name_to_index_training = self.data_indices.data.input.name_to_index
-        name_to_index_inference = self.data_indices.model.input.name_to_index
-        self.num_training_vars = len(name_to_index_training)
-        self.num_inference_vars = len(name_to_index_inference)
+        name_to_index_training_input = self.data_indices.data.input.name_to_index
+        name_to_index_inference_input = self.data_indices.model.input.name_to_index
+        name_to_index_training_output = self.data_indices.data.output.name_to_index
+        name_to_index_inference_output = self.data_indices.model.output.name_to_index
+        self.num_training_input_vars = len(name_to_index_training_input)
+        self.num_inference_input_vars = len(name_to_index_inference_input)
+        self.num_training_output_vars = len(name_to_index_training_output)
+        self.num_inference_output_vars = len(name_to_index_inference_output)
 
         (
             self.remappers,
             self.backmappers,
-            self.index_training,
-            self.index_inference,
+            self.index_training_input,
+            self.index_training_out,
+            self.index_inference_input,
+            self.index_inference_output,
         ) = (
             [],
             [],
-            list(name_to_index_training.values()),
-            list(name_to_index_inference.values()),
+            [],
+            [],
+            [],
+            [],
         )
 
         # Create parameter indices for remapping variables
-        for name in name_to_index_training:
+        for name in name_to_index_training_input:
             method = self.methods.get(name, self.default)
             if method in self.supported_methods:
                 self.remappers.append(self.supported_methods[method][0])
                 self.backmappers.append(self.supported_methods[method][1])
-                if name not in name_to_index_inference:
+                self.index_training_input.append(name_to_index_training_input[name])
+                if name in name_to_index_training_output:
+                    self.index_training_out.append(name_to_index_training_output[name])
+                else:
+                    self.index_training_out.append(None)
+                if name in name_to_index_inference_input:
+                    self.index_inference_input.append(name_to_index_inference_input[name])
+                else:
+                    self.index_inference_input.append(None)
+                if name in name_to_index_inference_output:
+                    self.index_inference_output.append(name_to_index_inference_output[name])
+                else:
                     # this is a forcing variable. It is not in the inference output.
-                    self.index_inference.append(None)
+                    self.index_inference_output.append(None)
             else:
                 raise KeyError[f"Unknown remapping method for {name}: {method}"]
 
     def transform(self, x, in_place: bool = True) -> torch.Tensor:
         if not in_place:
             x = x.clone()
-        if x.shape[-1] == self.num_training_vars:
-            idx = self.index_training
-        elif x.shape[-1] == self.num_inference_vars:
-            idx = self.index_inference
+        if x.shape[-1] == self.num_training_input_vars:
+            idx = self.index_training_input
+        elif x.shape[-1] == self.num_inference_input_vars:
+            idx = self.index_inference_input
         else:
             raise ValueError(
                 f"Input tensor ({x.shape[-1]}) does not match the training "
-                f"({self.num_training_vars}) or inference shape ({self.num_inference_vars})",
+                f"({self.num_training_input_vars}) or inference shape ({self.num_inference_input_vars})",
             )
         for i, remapper in zip(idx, self.remappers):
             if i is not None:
@@ -110,14 +135,14 @@ class Monomapper(BasePreprocessor, ABC):
     def inverse_transform(self, x, in_place: bool = True) -> torch.Tensor:
         if not in_place:
             x = x.clone()
-        if x.shape[-1] == self.num_training_vars:
-            idx = self.index_training
-        elif x.shape[-1] == self.num_inference_vars:
-            idx = self.index_inference
+        if x.shape[-1] == self.num_training_output_vars:
+            idx = self.index_training_out
+        elif x.shape[-1] == self.num_inference_output_vars:
+            idx = self.index_inference_output
         else:
             raise ValueError(
                 f"Input tensor ({x.shape[-1]}) does not match the training "
-                f"({self.num_training_vars}) or inference shape ({self.num_inference_vars})",
+                f"({self.num_training_output_vars}) or inference shape ({self.num_inference_output_vars})",
             )
         for i, backmapper in zip(idx, self.backmappers):
             if i is not None:

@@ -141,7 +141,7 @@ def test_transform_loss_mask(input_imputer, input_remapper) -> None:
     assert torch.allclose(loss_mask_training, expected_output)
 
 
-def test_remap_log1p(input_remapper_1d) -> None:
+def test_monomap_transform(input_remapper_1d) -> None:
     x = torch.Tensor([[1.0, 2.0, 3.0, 4.0, 150.0, 5.0], [6.0, 7.0, 8.0, 9.0, 201.0, 10.0]])
     expected_output = torch.Tensor(
         [
@@ -149,28 +149,35 @@ def test_remap_log1p(input_remapper_1d) -> None:
             [6.0, 7.0, 8.0, np.sqrt(9.0), np.log1p(201.0), 10.0],
         ]
     )
-    assert torch.allclose(input_remapper_1d.transform(x), expected_output)
     assert torch.allclose(input_remapper_1d.transform(x, in_place=False), expected_output)
     # inference mode (without prognostic variables)
     assert torch.allclose(
-        input_remapper_1d.transform(x[..., input_remapper_1d.data_indices.data.todict()['input']['full']]), 
-        expected_output[..., input_remapper_1d.data_indices.data.todict()['input']['full']]
+        input_remapper_1d.transform(
+            x[..., input_remapper_1d.data_indices.data.todict()["input"]["full"]], in_place=False
+        ),
+        expected_output[..., input_remapper_1d.data_indices.data.todict()["input"]["full"]],
     )
+    # this one actually changes the values in x so need to be last
+    assert torch.allclose(input_remapper_1d.transform(x), expected_output)
+
 
 def test_monomap_inverse_transform(input_remapper_1d) -> None:
     expected_output = torch.Tensor([[1.0, 2.0, 3.0, 4.0, 150.0, 5.0], [6.0, 7.0, 8.0, 9.0, 201.0, 10.0]])
-    x = torch.Tensor(
+    y = torch.Tensor(
         [
             [1.0, 2.0, 3.0, np.sqrt(4.0), np.log1p(150.0), 5.0],
             [6.0, 7.0, 8.0, np.sqrt(9.0), np.log1p(201.0), 10.0],
         ]
     )
-    assert torch.allclose(input_remapper_1d.inverse_transform(x, in_place=False), expected_output)
+    assert torch.allclose(input_remapper_1d.inverse_transform(y, in_place=False), expected_output)
     # inference mode (without prognostic variables)
     assert torch.allclose(
-        input_remapper_1d.inverse_transform(x[..., input_remapper_1d.data_indices.data.todict()['output']['full']]), 
-        expected_output[..., input_remapper_1d.data_indices.data.todict()['output']['full']]
+        input_remapper_1d.inverse_transform(
+            y[..., input_remapper_1d.data_indices.data.todict()["output"]["full"]], in_place=False
+        ),
+        expected_output[..., input_remapper_1d.data_indices.data.todict()["output"]["full"]],
     )
+
 
 def test_unsupported_remapper():
     config = DictConfig(
