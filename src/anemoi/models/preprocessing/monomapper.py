@@ -22,6 +22,7 @@ from anemoi.models.preprocessing.mappings import inverse_boxcox_converter
 from anemoi.models.preprocessing.mappings import log1p_converter
 from anemoi.models.preprocessing.mappings import sqrt_converter
 from anemoi.models.preprocessing.mappings import square_converter
+from anemoi.models.preprocessing.mappings import noop
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,9 +33,9 @@ class Monomapper(BasePreprocessor, ABC):
     supported_methods = {
         method: [f, inv]
         for method, f, inv in zip(
-            ["log1p", "sqrt", "boxcox"],
-            [log1p_converter, sqrt_converter, boxcox_converter],
-            [expm1_converter, square_converter, inverse_boxcox_converter],
+            ["log1p", "sqrt", "boxcox", "none"],
+            [log1p_converter, sqrt_converter, boxcox_converter, noop],
+            [expm1_converter, square_converter, inverse_boxcox_converter, noop],
         )
     }
 
@@ -45,22 +46,13 @@ class Monomapper(BasePreprocessor, ABC):
         statistics: Optional[dict] = None,
     ) -> None:
         super().__init__(config, data_indices, statistics)
-        self.remappers = []
-        self.backmappers = []
-        for name, method in self.methods.items():
-            method = method or self.default
-            if method == "none":
-                continue
-            elif method in self.supported_methods:
-                self.remappers.append(self.supported_methods[method][0])
-                self.backmappers.append(self.supported_methods[method][1])
-            else:
-                raise ValueError(f"Unknown remapping method for {name}: {method}")
         self._create_remapping_indices(statistics)
         self._validate_indices()
 
     def _validate_indices(self):
-        assert len(self.index_training) == len(self.index_inference) <= len(self.remappers), (
+        assert (
+            len(self.index_training) == len(self.index_inference) == len(self.remappers)
+        ), (
             f"Error creating conversion indices {len(self.index_training)}, "
             f"{len(self.index_inference)}, {len(self.remappers)}"
         )
@@ -77,54 +69,59 @@ class Monomapper(BasePreprocessor, ABC):
         self.num_inference_vars = len(name_to_index_inference)
 
         (
+            self.remappers,
+            self.backmappers,
             self.index_training,
             self.index_inference,
-        ) = ([], [])
+        ) = (
+            [],
+            [],
+            list(name_to_index_training.values()),
+            list(name_to_index_inference.values()),
+        )
 
         # Create parameter indices for remapping variables
         for name in name_to_index_training:
             method = self.methods.get(name, self.default)
-            if method == "none":
-                continue
-            elif method in self.supported_methods:
-                self.index_training.append(name_to_index_training[name])
-                if name in name_to_index_inference:
-                    self.index_inference.append(name_to_index_inference[name])
-                else:
+            if method in self.supported_methods:
+                self.remappers.append(self.supported_methods[method][0])
+                self.backmappers.append(self.supported_methods[method][1])
+                if name not in name_to_index_inference:
                     # this is a forcing variable. It is not in the inference output.
                     self.index_inference.append(None)
             else:
-                raise ValueError[f"Unknown remapping method for {name}: {method}"]
+                raise KeyError[f"Unknown remapping method for {name}: {method}"]
 
     def transform(self, x, in_place: bool = True) -> torch.Tensor:
         if not in_place:
-            x = x.clone()   
-            remapper = self.supported_methods[method][0]
-            if x.shape[-1] == self.num_training_vars:
-                idx = self.index_training
-            elif x.shape[-1] == self.num_inference_vars:
-                idx = self.index_inference
-            else:
-                raise ValueError(
-                    f"Input tensor ({x.shape[-1]}) does not match the training "
-                    f"({self.num_training_vars}) or inference shape ({self.num_inference_vars})",
-                )
-            if idx is not None:
-                x[..., idx] = remapper(x[..., idx])
+            x = x.clone()
+        if x.shape[-1] == self.num_training_vars:
+            idx = self.index_training
+        elif x.shape[-1] == self.num_inference_vars:
+            idx = self.index_inference
+        else:
+            raise ValueError(
+                f"Input tensor ({x.shape[-1]}) does not match the training "
+                f"({self.num_training_vars}) or inference shape ({self.num_inference_vars})",
+            )
+        for i, remapper in zip(idx, self.remappers):
+            if i is not None:
+                x[..., i] = remapper(x[..., i])
         return x
 
     def inverse_transform(self, x, in_place: bool = True) -> torch.Tensor:
-        for method in self.methods.values():
-            backmapper = self.supported_methods[method][1]
-            if x.shape[-1] == self.num_training_vars:
-                idx = self.index_training
-            elif x.shape[-1] == self.num_inference_vars:
-                idx = self.index_inference
-            else:
-                raise ValueError(
-                    f"Input tensor ({x.shape[-1]}) does not match the training "
-                    f"({self.num_training_vars}) or inference shape ({self.num_inference_vars})",
-                )
-            if idx is not None:
-                x[..., idx] = backmapper(x[..., idx])
+        if not in_place:
+            x = x.clone()
+        if x.shape[-1] == self.num_training_vars:
+            idx = self.index_training
+        elif x.shape[-1] == self.num_inference_vars:
+            idx = self.index_inference
+        else:
+            raise ValueError(
+                f"Input tensor ({x.shape[-1]}) does not match the training "
+                f"({self.num_training_vars}) or inference shape ({self.num_inference_vars})",
+            )
+        for i, backmapper in zip(idx, self.backmappers):
+            if i is not None:
+                x[..., i] = backmapper(x[..., i])
         return x
