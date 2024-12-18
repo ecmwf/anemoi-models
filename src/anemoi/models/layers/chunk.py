@@ -72,8 +72,8 @@ class TransformerProcessorChunk(BaseProcessorChunk):
         self,
         num_channels: int,
         num_layers: int,
-        window_size: int,
         layer_kernels: DotDict,
+        window_size: int,
         num_heads: int = 16,
         mlp_hidden_ratio: int = 4,
         activation: str = "GELU",
@@ -87,11 +87,11 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             Number of channels
         num_layers : int
             Number of layers
-        window_size: int,
-            1/2 size of shifted window for attention computation
         layer_kernels : DotDict
             A dict of layer implementations e.g. layer_kernels['Linear'] = "torch.nn.Linear"
             Defined in config/models/<model>.yaml
+        window_size: int,
+            1/2 size of shifted window for attention computation
         num_heads: int
             Number of heads to use, default 16
         mlp_hidden_ratio: int
@@ -110,8 +110,8 @@ class TransformerProcessorChunk(BaseProcessorChunk):
             num_heads=num_heads,
             activation=activation,
             window_size=window_size,
-            dropout_p=dropout_p,
             layer_kernels=layer_kernels,
+            dropout_p=dropout_p,
         )
 
     def forward(
@@ -165,6 +165,7 @@ class GNNProcessorChunk(BaseProcessorChunk):
                 in_features=edge_dim,
                 hidden_dim=num_channels,
                 out_features=num_channels,
+                layer_kernels=layer_kernels,
                 n_extra_layers=mlp_extra_layers,
                 activation=activation,
             )
@@ -175,9 +176,9 @@ class GNNProcessorChunk(BaseProcessorChunk):
             GraphConvProcessorBlock,
             num_channels,
             num_channels,
+            layer_kernels=layer_kernels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
-            layer_kernels=layer_kernels,
         )
 
     def forward(
@@ -239,10 +240,10 @@ class GraphTransformerProcessorChunk(BaseProcessorChunk):
             in_channels=num_channels,
             hidden_dim=mlp_hidden_ratio * num_channels,
             out_channels=num_channels,
-            num_heads=num_heads,
             edge_dim=edge_dim,
-            activation=activation,
+            num_heads=num_heads,
             layer_kernels=layer_kernels,
+            activation=activation,
         )
 
     def forward(

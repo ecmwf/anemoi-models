@@ -159,6 +159,7 @@ class GraphConvBaseBlock(BaseBlock):
         self.conv = GraphConv(
             in_channels=in_channels,
             out_channels=out_channels,
+            layer_kernels=layer_kernels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
         )
@@ -192,11 +193,11 @@ class GraphConvProcessorBlock(GraphConvBaseBlock):
             self,
             in_channels=in_channels,
             out_channels=out_channels,
+            layer_kernels=layer_kernels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
             update_src_nodes=update_src_nodes,
             num_chunks=num_chunks,
-            layer_kernels=layer_kernels,
             **kwargs,
         )
 
@@ -250,11 +251,11 @@ class GraphConvMapperBlock(GraphConvBaseBlock):
             self,
             in_channels=in_channels,
             out_channels=out_channels,
+            layer_kernels=layer_kernels,
             mlp_extra_layers=mlp_extra_layers,
             activation=activation,
             update_src_nodes=update_src_nodes,
             num_chunks=num_chunks,
-            layer_kernels=layer_kernels,
             **kwargs,
         )
 
@@ -365,18 +366,19 @@ class GraphTransformerBaseBlock(BaseBlock, ABC):
             LOGGER.error("Activation function %s not supported", activation)
             raise RuntimeError from ae
 
+        self.layer_norm_attention = layerNorm(normalized_shape=in_channels)
+        self.layer_norm_mlp = layerNorm(normalized_shape=out_channels)
+
         self.node_dst_mlp = nn.Sequential(
-            layerNorm(normalized_shape=out_channels),
+            self.layer_norm_mlp,
             linear(out_channels, hidden_dim),
             act_func(),
             linear(hidden_dim, out_channels),
         )
 
-        self.layer_norm_attention = layerNorm(normalized_shape=in_channels)
-
         if self.update_src_nodes:
             self.node_src_mlp = nn.Sequential(
-                layerNorm(normlaized_shape=out_channels),
+                self.layer_norm_mlp,
                 linear(out_channels, hidden_dim),
                 act_func(),
                 linear(hidden_dim, out_channels),
@@ -516,6 +518,7 @@ class GraphTransformerMapperBlock(GraphTransformerBaseBlock):
             self.layer_norm_attention(x[0]),
             self.layer_norm_attention_2(x[1]),
         )  # Why does this use layer_norm_attention_2? And only is a mapper thing?
+
         x_r = self.lin_self(x[1])
         query = self.lin_query(x[1])
         key = self.lin_key(x[0])
@@ -624,7 +627,8 @@ class GraphTransformerProcessorBlock(GraphTransformerBaseBlock):
             bias=bias,
             activation=activation,
             num_chunks=num_chunks,
-            update_src_nodes=update_src_nodes**kwargs,
+            update_src_nodes=update_src_nodes,
+            **kwargs,
         )
 
     def forward(
