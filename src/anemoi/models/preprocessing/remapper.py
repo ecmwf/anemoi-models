@@ -209,7 +209,10 @@ class BaseRemapperVariable(BasePreprocessor, ABC):
         x_remapped = x[..., index]
 
         # create new tensor with target number of columns
-        x = torch.nn.functional.pad(x, (0, target_number_columns - x.shape[-1]))
+        # x = torch.nn.functional.pad(x, (0, target_number_columns - x.shape[-1]))
+        x = torch.cat(
+            (x, torch.zeros(x.shape[:-1] + (target_number_columns - x.shape[-1],), dtype=x.dtype, device=x.device)), -1
+        )
         if in_place and not self.printed_preprocessor_warning:
             LOGGER.warning(
                 "Remapper (preprocessor) called with in_place=True. This preprocessor cannot be applied in_place as new columns are added to the tensors.",
