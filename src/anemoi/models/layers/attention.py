@@ -28,7 +28,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MultiHeadSelfAttention(nn.Module):
-    """Multi Head Self Attention Pytorch Layer using flash attention, see https://github.com/Dao-AILab/flash-attention"""
+    """Multi Head Self Attention Pytorch Layer
+
+    allows for three different attention implementations:
+    - scaled dot product attention, see https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html
+    - flash attention, see https://github.com/Dao-AILab/flash-attention
+    - flex attention, see https://pytorch.org/blog/flexattention/
+    """
 
     def __init__(
         self,
@@ -43,6 +49,13 @@ class MultiHeadSelfAttention(nn.Module):
         use_alibi_slopes: bool = False,
     ):
         """Initialize MultiHeadSelfAttention.
+
+        For the flash attention implementation, two additional parameters are available: softcap, use_alibi_slopes
+
+        softcap: Softcapping prevents the logits from grwoing excessively large
+
+        use_alibi_slopes: Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|) to the attention score of
+        query i and key j, where alibi_slope is calculated using get_alibi_slopes
 
         Parameters
         ----------
@@ -63,10 +76,10 @@ class MultiHeadSelfAttention(nn.Module):
         attention_implementation: str, optional
             A predefined string which selects which underlying attention
             implementation, by default "flash_attention"
+        softcap : float, optional
+            Anything > 0 activates softcapping attention, by default None
         use_alibi_slopes : bool, optional
-            Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
-            to the attention score of query i and key j, where alibi_slope
-            is calculated using get_alibi_slopes, by default None
+            Adds bias
         """
         super().__init__()
 
