@@ -111,7 +111,7 @@ class MultiHeadSelfAttention(nn.Module):
         attn_funcs = {
             "flash_attention": FlashAttentionWrapper,
             "flex_attention": FlexAttentionWrapper,
-            "scaled_dot_product_attention": TorchAttentionWrapper,
+            "scaled_dot_product_attention": SDPAAttentionWrapper,
         }
         assert (
             self.attention_implementation in attn_funcs
@@ -168,7 +168,7 @@ class MultiHeadSelfAttention(nn.Module):
         return out
 
 
-class TorchAttentionWrapper(nn.Module):
+class SDPAAttentionWrapper(nn.Module):
     """Wrapper for Pytorch scaled dot product attention"""
 
     def __init__(self):
@@ -181,18 +181,13 @@ class TorchAttentionWrapper(nn.Module):
         self.window_size = None
 
     def update_mask(self, seq_len, window_size: int, device: str):
-        update_mask = (
-            self.mask is None or self.window_size != window_size or tuple(self.mask.shape) != (seq_len, seq_len)
-        )
-        if update_mask:
-            self.window_size = window_size
-            self.mask = (
-                torch.abs(
-                    torch.arange(seq_len, device=device).unsqueeze(0)
-                    - torch.arange(seq_len, device=device).unsqueeze(1)
-                )
-                <= window_size
+
+        self.mask = (
+            torch.abs(
+                torch.arange(seq_len, device=device).unsqueeze(0) - torch.arange(seq_len, device=device).unsqueeze(1)
             )
+            <= window_size
+        )
 
     def forward(
         self,
@@ -214,10 +209,11 @@ class TorchAttentionWrapper(nn.Module):
             NotImplementedError(
                 "Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes."
             )
-        if window_size is not None:
-            self.update_mask(query.shape[-2], window_size=window_size, device=query.device)
-        else:
-            self.mask = None
+
+        sequence_len = query.shape[-2]
+
+        if window_size is not None and (self.mask is None or tuple(self.mask.shape) != (sequence_len, sequence_len)):
+            self.update_mask(sequence_len, window_size=window_size, device=query.device)
 
         with torch.nn.attention.sdpa_kernel(backends=[torch.nn.attention.SDPBackend.MATH]):
             out = self.attention(
