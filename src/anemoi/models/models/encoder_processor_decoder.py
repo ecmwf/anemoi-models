@@ -14,7 +14,9 @@ from typing import Optional
 import einops
 import torch
 from anemoi.utils.config import DotDict
+from hydra.errors import InstantiationException
 from hydra.utils import instantiate
+from omegaconf import OmegaConf
 from torch import Tensor
 from torch import nn
 from torch.distributed.distributed_c10d import ProcessGroup
@@ -65,6 +67,9 @@ class AnemoiModelEncProcDec(nn.Module):
 
         input_dim = self.multi_step * self.num_input_channels + self.node_attributes.attr_ndims[self._graph_name_data]
 
+        # read config.model.layer_kernels to get the implementation for certain layers
+        self._load_layer_kernels(model_config)
+
         # Encoder data -> hidden
         self.encoder = instantiate(
             model_config.model.encoder,
@@ -74,6 +79,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_data, "to", self._graph_name_hidden)],
             src_grid_size=self.node_attributes.num_nodes[self._graph_name_data],
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
+            layer_kernels=self.layer_kernels,
         )
 
         # Processor hidden -> hidden
@@ -83,6 +89,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_hidden)],
             src_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
+            layer_kernels=self.layer_kernels,
         )
 
         # Decoder hidden -> data
@@ -95,6 +102,7 @@ class AnemoiModelEncProcDec(nn.Module):
             sub_graph=self._graph_data[(self._graph_name_hidden, "to", self._graph_name_data)],
             src_grid_size=self.node_attributes.num_nodes[self._graph_name_hidden],
             dst_grid_size=self.node_attributes.num_nodes[self._graph_name_data],
+            layer_kernels=self.layer_kernels,
         )
 
         # Instantiation of model output bounding functions (e.g., to ensure outputs like TP are positive definite)
@@ -231,3 +239,26 @@ class AnemoiModelEncProcDec(nn.Module):
             x_out = bounding(x_out)
 
         return x_out
+
+    def _load_layer_kernels(self, config: DotDict) -> None:
+
+        # If self.layer_kernels entry is missing from the config, use torch.nn kernels
+        default_kernels = {
+            "Linear": {"_target_": "torch.nn.Linear", "_partial_": True},
+            "LayerNorm": {"_target_": "torch.nn.LayerNorm", "_partial_": True},
+        }
+        user_kernel = OmegaConf.select(config, "model.layer_kernels")
+        self.layer_kernels = {**default_kernels, **user_kernel}
+
+        # Loop through all kernels in the layer_kernels config entry and try import them
+        for kernel in self.layer_kernels:
+            kernel_entry = self.layer_kernels[kernel]
+            try:
+                instantiate(kernel_entry)
+            except InstantiationException:
+                LOGGER.info(
+                    f"{kernel_entry['_target_']} not found! check your config.model.layer_kernel.{kernel} entry. Maybe your desired kernel is not installed or the import string is incorrect?"
+                )
+                raise InstantiationException
+            else:
+                LOGGER.info(f"{kernel} kernel: {kernel_entry}")
