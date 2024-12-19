@@ -34,6 +34,7 @@ Keep it human-readable, your future self will thank you!
 - GraphTransformerMapperBlock chunking to reduce memory usage during inference [#46](https://github.com/ecmwf/anemoi-models/pull/46)
 - New `NamedNodesAttributes` class to handle node attributes in a more flexible way [#64](https://github.com/ecmwf/anemoi-models/pull/64)
 - Contributors file [#69](https://github.com/ecmwf/anemoi-models/pull/69)
+- Add sequence sharding strategy for TransformerProcessor [#90](https://github.com/ecmwf/anemoi-models/pull/90)
 
 ### Changed
 - Bugfixes for CI
