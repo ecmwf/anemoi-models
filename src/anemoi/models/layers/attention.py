@@ -28,7 +28,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MultiHeadSelfAttention(nn.Module):
-    """Multi Head Self Attention Pytorch Layer using flash attention, see https://github.com/Dao-AILab/flash-attention"""
+    """Multi Head Self Attention Pytorch Layer
+
+    allows for three different attention implementations:
+    - scaled dot product attention, see https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html
+    - flash attention, see https://github.com/Dao-AILab/flash-attention
+    - flex attention, see https://pytorch.org/blog/flexattention/
+    """
 
     def __init__(
         self,
@@ -44,6 +50,13 @@ class MultiHeadSelfAttention(nn.Module):
     ):
         """Initialize MultiHeadSelfAttention.
 
+        For the flash attention implementation, two additional parameters are available: softcap, use_alibi_slopes
+
+        softcap: Softcapping prevents the logits from grwoing excessively large
+
+        use_alibi_slopes: Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|) to the attention score of
+        query i and key j, where alibi_slope is calculated using get_alibi_slopes
+
         Parameters
         ----------
         num_heads : int
@@ -58,15 +71,13 @@ class MultiHeadSelfAttention(nn.Module):
             window_size, by default None
         dropout_p : float, optional
             dropout probability, by default 0.0
-        softcap : float, optional
-            Anything > 0 activates softcapping attention, by default None
         attention_implementation: str, optional
             A predefined string which selects which underlying attention
             implementation, by default "flash_attention"
+        softcap : float, optional
+            Anything > 0 activates softcapping attention, by default None
         use_alibi_slopes : bool, optional
-            Adds bias of (-alibi_slope * |i + seqlen_k - seqlen_q - j|)
-            to the attention score of query i and key j, where alibi_slope
-            is calculated using get_alibi_slopes, by default None
+            Adds bias
         """
         super().__init__()
 
@@ -88,7 +99,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         if self.use_alibi_slopes:
             self.alibi_slopes = get_alibi_slopes(num_heads)
-            assert self.alibi_slopes.shape[0] == num_heads
+            assert self.alibi_slopes.shape[0] == num_heads, "Error: Number of alibi_slopes must match number of heads"
         else:
             self.alibi_slopes = None
 
@@ -100,18 +111,16 @@ class MultiHeadSelfAttention(nn.Module):
         attn_funcs = {
             "flash_attention": FlashAttentionWrapper,
             "flex_attention": FlexAttentionWrapper,
-            "scaled_dot_product_attention": TorchAttentionWrapper,
+            "scaled_dot_product_attention": SDPAAttentionWrapper,
         }
-        if self.attention_implementation in attn_funcs:
-            LOGGER.info(f"attention.py: using {self.attention_implementation}")
-            # initalise the attn func here
-            self.attention = attn_funcs[self.attention_implementation]()
-        else:
-            # Requested attn implementation is not supported
-            raise SystemExit(
-                f"attention.py: Error! {self.attention_implementation} not supported. \
-                    please change model.processor.attention_implementation in the config to one of: {attn_funcs.keys()}"
-            )
+        assert (
+            self.attention_implementation in attn_funcs
+        ), f"{self.attention_implementation} not supported. \
+              Please change model.processor.attention_implementation in the config to one of: {attn_funcs.keys()}"
+        LOGGER.info(f"Using {self.attention_implementation}")
+
+        # initalise the attn func here
+        self.attention = attn_funcs[self.attention_implementation]()
 
     def forward(
         self, x: Tensor, shapes: list, batch_size: int, model_comm_group: Optional[ProcessGroup] = None
@@ -159,8 +168,8 @@ class MultiHeadSelfAttention(nn.Module):
         return out
 
 
-class TorchAttentionWrapper(nn.Module):
-    """Wrapper for Pytorch dot product attention"""
+class SDPAAttentionWrapper(nn.Module):
+    """Wrapper for Pytorch scaled dot product attention"""
 
     def __init__(self):
         super().__init__()
@@ -172,18 +181,13 @@ class TorchAttentionWrapper(nn.Module):
         self.window_size = None
 
     def update_mask(self, seq_len, window_size: int, device: str):
-        update_mask = (
-            self.mask is None or self.window_size != window_size or tuple(self.mask.shape) != (seq_len, seq_len)
-        )
-        if update_mask:
-            self.window_size = window_size
-            self.mask = (
-                torch.abs(
-                    torch.arange(seq_len, device=device).unsqueeze(0)
-                    - torch.arange(seq_len, device=device).unsqueeze(1)
-                )
-                <= window_size
+
+        self.mask = (
+            torch.abs(
+                torch.arange(seq_len, device=device).unsqueeze(0) - torch.arange(seq_len, device=device).unsqueeze(1)
             )
+            <= window_size
+        )
 
     def forward(
         self,
@@ -198,17 +202,18 @@ class TorchAttentionWrapper(nn.Module):
         alibi_slopes=None,
     ):
         if softcap is not None:
-            SystemError(
-                "Error. Softcap not supported by Pytorchs SDPA. please switch to flash attention or disable softcap."
+            NotImplementedError(
+                "Softcap not supported by Pytorchs SDPA. please switch to flash attention or disable softcap."
             )
         if alibi_slopes is not None:
-            SystemError(
-                "Error. Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes."
+            NotImplementedError(
+                "Alibi slopes not supported by Pytorchs SDPA. please switch to flash attention or disable alibi slopes."
             )
-        if window_size is not None:
-            self.update_mask(query.shape[-2], window_size=window_size, device=query.device)
-        else:
-            self.mask = None
+
+        sequence_len = query.shape[-2]
+
+        if window_size is not None and (self.mask is None or tuple(self.mask.shape) != (sequence_len, sequence_len)):
+            self.update_mask(sequence_len, window_size=window_size, device=query.device)
 
         with torch.nn.attention.sdpa_kernel(backends=[torch.nn.attention.SDPBackend.MATH]):
             out = self.attention(
@@ -230,7 +235,7 @@ class FlexAttentionWrapper(nn.Module):
         super().__init__()
 
         if version.parse(torch.__version__) < version.parse("2.5.0"):
-            raise SystemExit("Error: torch version is too low. Update to 2.5.0 or higher to use Flex Attention.")
+            raise RuntimeError("Error: torch version is too low. Update to 2.5.0 or higher to use Flex Attention.")
 
         # we compile flex attn once at the first iteration
         # This is bc we need to know the seq len to compute the mask mod for sliding window
@@ -250,13 +255,13 @@ class FlexAttentionWrapper(nn.Module):
     ):
 
         if alibi_slopes is not None:
-            SystemExit("Error. Alibi_slopes not yet implemented in FlexAttn in Anemoi.")
+            NotImplementedError("Error. Alibi_slopes not yet implemented in FlexAttn in Anemoi.")
         if softcap is not None:
-            SystemExit("Error. Softcap not yet implemented in FlexAttn in Anemoi.")
+            NotImplementedError("Error. Softcap not yet implemented in FlexAttn in Anemoi.")
         if dropout_p != 0.0:
-            SystemExit("Error. Dropout not yet implemented in FlexAttn in Anemoi.")
+            NotImplementedError("Error. Dropout not yet implemented in FlexAttn in Anemoi.")
         if causal:
-            SystemExit("Error. Causal not yet implemented in FlexAttn in Anemoi.")
+            NotImplementedError("Error. Causal not yet implemented in FlexAttn in Anemoi.")
 
         # This assumes seq_len never changes
         # across iterations and stages
@@ -283,7 +288,7 @@ class FlexAttentionWrapper(nn.Module):
             self.attention = torch.compile(self.attention)
             self.is_attn_compiled = True
 
-        # TODO test how this impacts scaling at large model counts
+        # TODO(Cathal): test how this impacts scaling at large model counts
         torch._dynamo.config.optimize_ddp = False
         out = self.attention(query, key, value)
         torch._dynamo.config.optimize_ddp = True
@@ -299,7 +304,7 @@ class FlashAttentionWrapper(nn.Module):
         import flash_attn
 
         if version.parse(flash_attn.__version__) < version.parse("2.6.0"):
-            raise SystemExit("Error: Flash-attn version is too low. Update to 2.6.0 or higher.")
+            raise RuntimeError("Error: Flash-attn version is too low. Update to 2.6.0 or higher.")
         else:
             self.attention = flash_attn.flash_attn_func
 
@@ -349,10 +354,10 @@ def get_alibi_slopes(num_heads: int) -> Tensor:
         aLiBi slopes
     """
     n = 2 ** math.floor(math.log2(num_heads))
-    slope_0 = 2.0 ** (-8.0 / n)
+    slope_0 = 2 ** (-8 / n)
     alibi_slopes = torch.pow(slope_0, torch.arange(1, 1 + n))
     if n < num_heads:
-        slope_hat_0 = 2.0 ** (-4.0 / n)
+        slope_hat_0 = 2 ** (-4 / n)
         alibi_slopes_hat = torch.pow(slope_hat_0, torch.arange(1, 1 + 2 * (num_heads - n), 2))
         alibi_slopes = torch.cat([alibi_slopes, alibi_slopes_hat])
     return alibi_slopes
