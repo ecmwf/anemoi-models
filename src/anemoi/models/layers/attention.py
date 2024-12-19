@@ -288,7 +288,7 @@ class FlexAttentionWrapper(nn.Module):
             self.attention = torch.compile(self.attention)
             self.is_attn_compiled = True
 
-        # TODO test how this impacts scaling at large model counts
+        # TODO(Cathal): test how this impacts scaling at large model counts
         torch._dynamo.config.optimize_ddp = False
         out = self.attention(query, key, value)
         torch._dynamo.config.optimize_ddp = True
@@ -354,10 +354,10 @@ def get_alibi_slopes(num_heads: int) -> Tensor:
         aLiBi slopes
     """
     n = 2 ** math.floor(math.log2(num_heads))
-    slope_0 = 2.0 ** (-8.0 / n)
+    slope_0 = 2 ** (-8 / n)
     alibi_slopes = torch.pow(slope_0, torch.arange(1, 1 + n))
     if n < num_heads:
-        slope_hat_0 = 2.0 ** (-4.0 / n)
+        slope_hat_0 = 2 ** (-4 / n)
         alibi_slopes_hat = torch.pow(slope_hat_0, torch.arange(1, 1 + 2 * (num_heads - n), 2))
         alibi_slopes = torch.cat([alibi_slopes, alibi_slopes_hat])
     return alibi_slopes
