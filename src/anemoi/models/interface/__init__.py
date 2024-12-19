@@ -1,11 +1,11 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2024 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-#
 
 import uuid
 
@@ -37,6 +37,8 @@ class AnemoiModelInterface(torch.nn.Module):
         Statistics for the data.
     metadata : dict
         Metadata for the model.
+    supporting_arrays : dict
+        Numpy arraysto store in the checkpoint.
     data_indices : dict
         Indices for the data.
     pre_processors : Processors
@@ -48,7 +50,14 @@ class AnemoiModelInterface(torch.nn.Module):
     """
 
     def __init__(
-        self, *, config: DotDict, graph_data: HeteroData, statistics: dict, data_indices: dict, metadata: dict
+        self,
+        *,
+        config: DotDict,
+        graph_data: HeteroData,
+        statistics: dict,
+        data_indices: dict,
+        metadata: dict,
+        supporting_arrays: dict = None,
     ) -> None:
         super().__init__()
         self.config = config
@@ -57,6 +66,7 @@ class AnemoiModelInterface(torch.nn.Module):
         self.graph_data = graph_data
         self.statistics = statistics
         self.metadata = metadata
+        self.supporting_arrays = supporting_arrays if supporting_arrays is not None else {}
         self.data_indices = data_indices
         self._build_model()
 
