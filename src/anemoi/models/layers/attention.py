@@ -274,21 +274,23 @@ class FlexAttentionWrapper(nn.Module):
 
             from torch.nn.attention.flex_attention import create_block_mask  # should this be after the version check?
             from torch.nn.attention.flex_attention import flex_attention
+            
+            if window_size is not None:
+                def sliding_window_mask(b, h, q_idx, kv_idx):
+                    return abs(q_idx - kv_idx) <= window_size
 
-            def sliding_window_mask(b, h, q_idx, kv_idx):
-                return abs(q_idx - kv_idx) <= window_size
-
-            seq_len = query.shape[2]
-            self.block_mask = create_block_mask(
-                sliding_window_mask, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len, _compile=True
-            )
-            self.attention = functools.partial(
-                flex_attention, block_mask=self.block_mask
-            )  # Cache the block mask (recomended in attn blog post)
+                seq_len = query.shape[2]
+                self.block_mask = create_block_mask(
+                    sliding_window_mask, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len, _compile=True
+                )
+                self.attention = functools.partial(
+                    flex_attention, block_mask=self.block_mask
+                )  # Cache the block mask (recomended in attn blog post)
+            else:
+                self.attention = flex_attention
             self.attention = torch.compile(self.attention)
             self.is_attn_compiled = True
 
-        # TODO(Cathal): test how this impacts scaling at large model counts
         torch._dynamo.config.optimize_ddp = False
         out = self.attention(query, key, value)
         torch._dynamo.config.optimize_ddp = True
